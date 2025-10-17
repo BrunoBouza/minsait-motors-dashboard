@@ -3,17 +3,22 @@ Módulo para cargar y preparar los datos del dashboard de Minsait Motors
 """
 import pandas as pd
 import streamlit as st
+from sqlalchemy import create_engine
 
 @st.cache_data
 def load_data():
     """
-    Carga el archivo CSV y realiza las transformaciones iniciales necesarias.
+    Carga los datos desde la base de datos Neon PostgreSQL y realiza las transformaciones iniciales necesarias.
     
     Returns:
         pd.DataFrame: DataFrame con los datos de ventas de vehículos
     """
-    # Cargar el archivo CSV
-    df = pd.read_csv('Car Sales.csv')
+    # Conexión a la base de datos Neon usando secrets
+    connection_string = st.secrets["connections"]["neon"]["url"]
+    engine = create_engine(connection_string)
+    
+    # Cargar datos desde la tabla car_sales
+    df = pd.read_sql("SELECT * FROM car_sales", engine)
     
     # Convertir la columna Date a formato datetime
     df['Date'] = pd.to_datetime(df['Date'])

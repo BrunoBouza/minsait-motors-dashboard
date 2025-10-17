@@ -44,6 +44,10 @@ Thumbs.db
 .env
 .env.local
 
+# Temporary files
+temp.py
+temp_*.py
+
 # Streamlit
 .streamlit/secrets.toml
 

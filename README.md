@@ -42,13 +42,16 @@ Múltiples algoritmos de Machine Learning para predicción:
 - **NumPy**: Cálculos numéricos
 - **Scikit-learn**: Algoritmos de ML (Regresión Lineal, Random Forest)
 - **Statsmodels**: Modelos de series temporales (ARIMA, SARIMA)
+- **SQLAlchemy**: ORM para conexión a base de datos
+- **Psycopg2**: Driver de PostgreSQL
+- **Neon**: Base de datos PostgreSQL serverless en la nube
 
 ## 📦 Instalación
 
 1. Clona el repositorio:
 ```bash
-git clone <url-del-repositorio>
-cd "Minsait Motors"
+git clone https://github.com/BrunoBouza/minsait-motors-dashboard.git
+cd minsait-motors-dashboard
 ```
 
 2. Crea un entorno virtual:
@@ -71,6 +74,14 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+5. **Configura los Secrets** 🔒:
+   - Copia el archivo de ejemplo:
+     ```bash
+     copy .streamlit\secrets.toml.example .streamlit\secrets.toml
+     ```
+   - Edita `.streamlit/secrets.toml` con tu URL de conexión a Neon PostgreSQL
+   - ⚠️ **NUNCA subas `secrets.toml` a GitHub** (ya está en `.gitignore`)
+
 ## 🚀 Uso
 
 Ejecuta la aplicación:
@@ -80,23 +91,49 @@ streamlit run app.py
 
 La aplicación se abrirá automáticamente en tu navegador en `http://localhost:8501`
 
+## ☁️ Deploy en Streamlit Cloud
+
+1. Sube tu código a GitHub (el archivo `secrets.toml` NO se subirá)
+2. Ve a [share.streamlit.io](https://share.streamlit.io/)
+3. Conecta tu repositorio
+4. En "Settings" > "Secrets", pega el contenido de tu `secrets.toml`:
+   ```toml
+   [connections.neon]
+   url = "postgresql://USUARIO:CONTRASEÑA@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+   ```
+5. ¡Despliega tu app!
+
 ## 📁 Estructura del Proyecto
 
 ```
-Minsait Motors/
+minsait-motors-dashboard/
 ├── app.py                  # Aplicación principal de Streamlit
-├── data_loader.py          # Carga de datos y funciones de negocio
+├── data_loader.py          # Carga de datos desde PostgreSQL
 ├── visualizations.py       # Funciones de visualización con Plotly
 ├── predictions.py          # Modelos de predicción ML/Series Temporales
-├── Car Sales.csv           # Dataset de ventas de vehículos
+├── Car Sales.csv           # Dataset original (respaldo)
 ├── requirements.txt        # Dependencias del proyecto
 ├── README.md              # Este archivo
-└── .gitignore             # Archivos a ignorar por Git
+├── .gitignore             # Archivos a ignorar por Git
+└── .streamlit/
+    ├── secrets.toml       # 🔒 Credenciales (NO subir a GitHub)
+    └── secrets.toml.example  # Plantilla de configuración
 ```
 
-## 📈 Dataset
+## 📊 Base de Datos
 
-El dataset `Car Sales.csv` contiene información de ventas de vehículos con las siguientes columnas:
+El proyecto utiliza **Neon PostgreSQL** para almacenar los datos de ventas:
+- **Tabla**: `car_sales`
+- **Conexión**: Configurada en `.streamlit/secrets.toml`
+- **Ventajas**: 
+  - Datos centralizados en la nube
+  - Actualización sin modificar código
+  - Escalabilidad automática
+  - Conexión segura con SSL
+
+### Estructura de Datos
+
+La tabla `car_sales` contiene información de ventas de vehículos con las siguientes columnas:
 - **Date**: Fecha de la venta
 - **Price ($)**: Precio de venta
 - **Company**: Marca del vehículo
