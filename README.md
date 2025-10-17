@@ -1,41 +1,79 @@
-# 🚗 Minsait Motors - Dashboard de Análisis de Ventas
+# Minsait Motors - Dashboard de Ventas# 🚗 Minsait Motors - Dashboard de Análisis de Ventas
 
-Dashboard interactivo de análisis y predicción de ventas de vehículos desarrollado con Streamlit y Plotly.
 
-## 📊 Características
 
-### Análisis de Datos
-- **KPIs dinámicos**: Ventas totales, ventas anuales, ventas promedio con comparación año a año
-- **Gráficas interactivas**:
-  - Línea temporal de ventas (agregación semanal)
+Dashboard de análisis de ventas de vehículos con predicciones usando Machine Learning.Dashboard interactivo de análisis y predicción de ventas de vehículos desarrollado con Streamlit y Plotly.
+
+
+
+## Características## 📊 Características
+
+
+
+- KPIs de ventas con comparación año anterior### Análisis de Datos
+
+- Gráficas interactivas con filtros- **KPIs dinámicos**: Ventas totales, ventas anuales, ventas promedio con comparación año a año
+
+- Predicción de ventas con varios algoritmos (Regresión Lineal, Random Forest, ARIMA, SARIMA)- **Gráficas interactivas**:
+
+- Análisis ACF/PACF para series temporales  - Línea temporal de ventas (agregación semanal)
+
   - Top 10 compañías por ventas
-  - Ventas por mes
+
+## Instalación  - Ventas por mes
+
   - Top 10 modelos más vendidos
-  - Distribución por tipo de transmisión
-  - Ventas por género
 
-### Filtros Interactivos
-- Rango de fechas con slider
+```bash  - Distribución por tipo de transmisión
+
+git clone https://github.com/BrunoBouza/minsait-motors-dashboard.git  - Ventas por género
+
+cd minsait-motors-dashboard
+
+pip install -r requirements.txt### Filtros Interactivos
+
+```- Rango de fechas con slider
+
 - Filtro por compañía
-- Filtro por tipo de transmisión
-- Filtro por género del comprador
 
-### Predicción de Ventas 🔮
-Múltiples algoritmos de Machine Learning para predicción:
+Configurar `.streamlit/secrets.toml` con la conexión a PostgreSQL:- Filtro por tipo de transmisión
+
+```toml- Filtro por género del comprador
+
+[connections.neon]
+
+url = "postgresql://usuario:password@host/database"### Predicción de Ventas 🔮
+
+```Múltiples algoritmos de Machine Learning para predicción:
+
 - **Regresión Lineal**: Modelo simple para tendencias lineales
-- **Random Forest**: Captura patrones no lineales y estacionalidad
+
+## Uso- **Random Forest**: Captura patrones no lineales y estacionalidad
+
 - **Media Móvil con Tendencia**: Incluye factores estacionales semanales
-- **ARIMA**: Modelo de series temporales sin componente estacional
-- **SARIMA**: Modelo avanzado con estacionalidad (configurable)
+
+```bash- **ARIMA**: Modelo de series temporales sin componente estacional
+
+streamlit run app.py- **SARIMA**: Modelo avanzado con estacionalidad (configurable)
+
+```
 
 ### Análisis de Series Temporales
-- **Gráficas ACF/PACF**: Para selección de parámetros ARIMA
+
+## Tecnologías- **Gráficas ACF/PACF**: Para selección de parámetros ARIMA
+
 - **Análisis de Diferencia Estacional**: Para SARIMA (y_t - y_(t-s))
-- **Parámetros configurables**: Control completo sobre (p,d,q) y (P,D,Q,s)
 
-## 🛠️ Tecnologías
+Python, Streamlit, Pandas, Plotly, Scikit-learn, Statsmodels, PostgreSQL- **Parámetros configurables**: Control completo sobre (p,d,q) y (P,D,Q,s)
 
-- **Python 3.8+**
+
+
+## Autor## 🛠️ Tecnologías
+
+
+
+Bruno Bouza Fernández- **Python 3.8+**
+
 - **Streamlit**: Framework de aplicaciones web
 - **Pandas**: Manipulación de datos
 - **Plotly**: Visualizaciones interactivas
@@ -80,7 +118,6 @@ pip install -r requirements.txt
      copy .streamlit\secrets.toml.example .streamlit\secrets.toml
      ```
    - Edita `.streamlit/secrets.toml` con tu URL de conexión a Neon PostgreSQL
-   - ⚠️ **NUNCA subas `secrets.toml` a GitHub** (ya está en `.gitignore`)
 
 ## 🚀 Uso
 
@@ -155,14 +192,6 @@ Modelo avanzado con componente estacional. Parámetros configurables:
 - **(P,D,Q,s)**: Componente estacional
   - **s**: Período estacional (52 para datos semanales anuales)
 
-## 🤝 Contribuciones
 
-Las contribuciones son bienvenidas. Por favor, abre un issue primero para discutir los cambios que te gustaría realizar.
-
-## 📝 Licencia
-
-Este proyecto es un proyecto educativo desarrollado como parte del Streamlit Course.
-
-## 👨‍💻 Autor
 
 Desarrollado como proyecto práctico de análisis de datos y predicción de series temporales.
