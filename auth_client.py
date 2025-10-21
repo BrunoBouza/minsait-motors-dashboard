@@ -11,16 +11,27 @@ def get_api_url():
     """Obtiene la URL de la API desde secrets (producción) o .env (local)"""
     # Primero intentar desde secrets de Streamlit (producción)
     try:
-        if hasattr(st, 'secrets') and 'API_URL' in st.secrets:
-            return st.secrets['API_URL']
+        api_url = st.secrets.get("API_URL")
+        if api_url:
+            return api_url
+    except Exception as e:
+        pass
+    
+    # Intentar como variable directa en secrets
+    try:
+        if "API_URL" in st.secrets:
+            return st.secrets["API_URL"]
     except:
         pass
     
     # Si no, intentar desde variable de entorno
-    from dotenv import load_dotenv
-    load_dotenv()
-    api_url = os.getenv("API_URL", "http://localhost:8000")
-    return api_url
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        api_url = os.getenv("API_URL", "http://localhost:8000")
+        return api_url
+    except:
+        return "http://localhost:8000"
 
 API_URL = get_api_url()
 
@@ -135,6 +146,10 @@ def login_page():
         }
         </style>
     """, unsafe_allow_html=True)
+    
+    # DEBUG: Mostrar qué URL está usando (temporal)
+    api_url_debug = get_api_url()
+    st.sidebar.info(f"🔍 API URL: {api_url_debug}")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     
