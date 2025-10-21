@@ -154,10 +154,6 @@ def login_page():
         </style>
     """, unsafe_allow_html=True)
     
-    # DEBUG: Mostrar qué URL está usando (temporal)
-    api_url_debug = get_api_url()
-    st.sidebar.info(f"🔍 API URL: {api_url_debug}")
-    
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
