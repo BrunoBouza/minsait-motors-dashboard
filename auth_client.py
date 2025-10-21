@@ -11,6 +11,15 @@ def get_api_url():
     """Obtiene la URL de la API desde secrets (producción) o .env (local)"""
     # Primero intentar desde secrets de Streamlit (producción)
     try:
+        # Intentar desde connections.neon.API_URL primero
+        if "connections" in st.secrets and "neon" in st.secrets["connections"]:
+            if "API_URL" in st.secrets["connections"]["neon"]:
+                return st.secrets["connections"]["neon"]["API_URL"]
+    except:
+        pass
+    
+    # Intentar desde la raíz de secrets
+    try:
         api_url = st.secrets.get("API_URL")
         if api_url:
             return api_url
@@ -33,13 +42,11 @@ def get_api_url():
     except:
         return "http://localhost:8000"
 
-API_URL = get_api_url()
-
 class AuthClient:
     """Cliente para manejar autenticación con la API"""
     
-    def __init__(self, api_url: str = API_URL):
-        self.api_url = api_url
+    def __init__(self, api_url: str = None):
+        self.api_url = api_url if api_url else get_api_url()
     
     def register(self, username: str, password: str) -> Dict:
         """Registra un nuevo usuario"""
