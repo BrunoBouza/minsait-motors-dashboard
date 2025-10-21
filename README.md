@@ -1,54 +1,144 @@
-# Minsait Motors - Dashboard de Ventas# 🚗 Minsait Motors - Dashboard de Análisis de Ventas
+# Minsait Motors - Dashboard de Ventas# Minsait Motors - Dashboard de Ventas# Minsait Motors - Dashboard de Ventas# 🚗 Minsait Motors - Dashboard de Análisis de Ventas
 
 
 
-Dashboard de análisis de ventas de vehículos con predicciones usando Machine Learning.Dashboard interactivo de análisis y predicción de ventas de vehículos desarrollado con Streamlit y Plotly.
+Dashboard de análisis de ventas de vehículos con predicciones usando Machine Learning.
 
 
 
-## Características## 📊 Características
+## CaracterísticasDashboard de análisis de ventas de vehículos con predicciones usando Machine Learning.
 
 
 
-- KPIs de ventas con comparación año anterior### Análisis de Datos
+- KPIs de ventas con comparación año anterior
 
-- Gráficas interactivas con filtros- **KPIs dinámicos**: Ventas totales, ventas anuales, ventas promedio con comparación año a año
+- Gráficas interactivas con filtros
 
-- Predicción de ventas con varios algoritmos (Regresión Lineal, Random Forest, ARIMA, SARIMA)- **Gráficas interactivas**:
+- Predicción de ventas con varios algoritmos (Regresión Lineal, Random Forest, ARIMA, SARIMA)## Estructura del ProyectoDashboard de análisis de ventas de vehículos con predicciones usando Machine Learning.Dashboard interactivo de análisis y predicción de ventas de vehículos desarrollado con Streamlit y Plotly.
 
-- Análisis ACF/PACF para series temporales  - Línea temporal de ventas (agregación semanal)
+- Análisis ACF/PACF para series temporales
 
-  - Top 10 compañías por ventas
 
-## Instalación  - Ventas por mes
 
-  - Top 10 modelos más vendidos
+## Instalación
 
-```bash  - Distribución por tipo de transmisión
+```
 
-git clone https://github.com/BrunoBouza/minsait-motors-dashboard.git  - Ventas por género
+```bash
+
+git clone https://github.com/BrunoBouza/minsait-motors-dashboard.git├── streamlit/          # Aplicación Streamlit
 
 cd minsait-motors-dashboard
 
-pip install -r requirements.txt### Filtros Interactivos
+pip install -r requirements.txt│   ├── app.py## Características## 📊 Características
 
-```- Rango de fechas con slider
+```
 
-- Filtro por compañía
+│   ├── data_loader.py
 
-Configurar `.streamlit/secrets.toml` con la conexión a PostgreSQL:- Filtro por tipo de transmisión
+Configurar `.streamlit/secrets.toml` con la conexión a PostgreSQL:
 
-```toml- Filtro por género del comprador
+```toml│   ├── predictions.py
 
 [connections.neon]
 
+url = "postgresql://usuario:password@host/database"│   ├── visualizations.py
+
+```
+
+│   └── requirements.txt- KPIs de ventas con comparación año anterior### Análisis de Datos
+
+## Uso
+
+├── api/                # API REST (en desarrollo)
+
+```bash
+
+streamlit run app.py└── .streamlit/         # Configuración y secrets- Gráficas interactivas con filtros- **KPIs dinámicos**: Ventas totales, ventas anuales, ventas promedio con comparación año a año
+
+```
+
+```
+
+## Tecnologías
+
+- Predicción de ventas con varios algoritmos (Regresión Lineal, Random Forest, ARIMA, SARIMA)- **Gráficas interactivas**:
+
+Python, Streamlit, Pandas, Plotly, Scikit-learn, Statsmodels, PostgreSQL
+
+## Características
+
+## Autor
+
+- Análisis ACF/PACF para series temporales  - Línea temporal de ventas (agregación semanal)
+
+Bruno Bouza Fernández
+
+- KPIs de ventas con comparación año anterior
+
+- Gráficas interactivas con filtros  - Top 10 compañías por ventas
+
+- Predicción de ventas con varios algoritmos (Regresión Lineal, Random Forest, ARIMA, SARIMA)
+
+- Análisis ACF/PACF para series temporales## Instalación  - Ventas por mes
+
+
+
+## Instalación  - Top 10 modelos más vendidos
+
+
+
+```bash```bash  - Distribución por tipo de transmisión
+
+git clone https://github.com/BrunoBouza/minsait-motors-dashboard.git
+
+cd minsait-motors-dashboard/streamlitgit clone https://github.com/BrunoBouza/minsait-motors-dashboard.git  - Ventas por género
+
+pip install -r requirements.txt
+
+```cd minsait-motors-dashboard
+
+
+
+Configurar `.streamlit/secrets.toml` con la conexión a PostgreSQL:pip install -r requirements.txt### Filtros Interactivos
+
+```toml
+
+[connections.neon]```- Rango de fechas con slider
+
+url = "postgresql://usuario:password@host/database"
+
+```- Filtro por compañía
+
+
+
+## UsoConfigurar `.streamlit/secrets.toml` con la conexión a PostgreSQL:- Filtro por tipo de transmisión
+
+
+
+```bash```toml- Filtro por género del comprador
+
+cd streamlit
+
+streamlit run app.py[connections.neon]
+
+```
+
 url = "postgresql://usuario:password@host/database"### Predicción de Ventas 🔮
+
+## Tecnologías
 
 ```Múltiples algoritmos de Machine Learning para predicción:
 
+Python, Streamlit, Pandas, Plotly, Scikit-learn, Statsmodels, PostgreSQL
+
 - **Regresión Lineal**: Modelo simple para tendencias lineales
 
+## Autor
+
 ## Uso- **Random Forest**: Captura patrones no lineales y estacionalidad
+
+Bruno Bouza Fernández
 
 - **Media Móvil con Tendencia**: Incluye factores estacionales semanales
 

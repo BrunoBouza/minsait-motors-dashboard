@@ -26,6 +26,7 @@ from predictions import (
     get_prediction_summary,
     create_acf_pacf_plot
 )
+from auth_client import init_session_state, login_page, logout
 
 # Configuración de la página
 st.set_page_config(
@@ -89,9 +90,25 @@ def main():
     Carga los datos, crea la interfaz y muestra todas las visualizaciones.
     """
     
-    # Header del dashboard
-    st.title("MINSAIT MOTORS")
-    st.markdown("Dashboard de Análisis de Ventas")
+    # Inicializar estado de sesión
+    init_session_state()
+    
+    # Verificar autenticación
+    if not st.session_state.authenticated:
+        login_page()
+        return
+    
+    # Header del dashboard con botón de logout
+    col_title, col_user = st.columns([3, 1])
+    with col_title:
+        st.title("🚗 MINSAIT MOTORS")
+        st.markdown("Dashboard de Análisis de Ventas")
+    with col_user:
+        st.write("")  # Espaciado
+        if st.session_state.user_info:
+            st.markdown(f"**Usuario:** {st.session_state.user_info.get('username', 'N/A')}")
+        if st.button("Cerrar Sesión", use_container_width=True):
+            logout()
     
     # Cargar los datos
     with st.spinner('Cargando datos...'):

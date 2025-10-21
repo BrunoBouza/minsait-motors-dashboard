@@ -4,5 +4,5 @@ plotly
 numpy
 scikit-learn
 statsmodels
-sqlalchemy
-psycopg2-binary
+requests
+python-dotenv
