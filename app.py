@@ -26,7 +26,7 @@ from predictions import (
     get_prediction_summary,
     create_acf_pacf_plot
 )
-from auth_client import init_session_state, login_page, logout, show_user_management
+from auth_client import init_session_state, login_page, logout, show_user_management, show_new_sale_form
 
 # Configuración de la página
 st.set_page_config(
@@ -107,18 +107,80 @@ def main():
         st.write("")  # Espaciado
         if st.session_state.user_info:
             st.markdown(f"**Usuario:** {st.session_state.user_info.get('username', 'N/A')}")
+            st.caption(f"Rol: {st.session_state.user_info.get('role', 'N/A')}")
         if st.button("Cerrar Sesión", use_container_width=True):
             logout()
     
-    # Cargar los datos
+    st.markdown("---")
+    
+    # Pestañas principales con diseño mejorado
+    user_role = st.session_state.user_info.get("role")
+    
+    # CSS personalizado para pestañas más notorias
+    st.markdown("""
+        <style>
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #f0f2f6;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 60px;
+            font-size: 18px;
+            font-weight: 600;
+            padding: 0 24px;
+            background-color: white;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #4CAF50;
+            color: white;
+            border: 2px solid #4CAF50;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Mostrar pestaña de añadir venta solo para admin y writer
+    if user_role in ["admin", "writer"]:
+        tab1, tab2 = st.tabs(["📊 DASHBOARD", "➕ NUEVA VENTA"])
+    else:
+        tab1, tab2 = st.tabs(["📊 DASHBOARD", "ℹ️ INFORMACIÓN"])
+    
+    # Cargar los datos (fuera de las pestañas para usarlos en ambas)
     with st.spinner('Cargando datos...'):
         df = load_data()
     
-    # Guardar las fechas min/max
-    min_date = df['Date'].min()
-    max_date = df['Date'].max()
+    # TAB 1: Dashboard de Análisis
+    with tab1:
+        # Guardar las fechas min/max
+        min_date = df['Date'].min()
+        max_date = df['Date'].max()
+        
+        # Slider de fechas en el área principal (ANTES de filtrar datos)
+        st.markdown("##### Seleccionar Rango de Fechas")
+        date_range_slider = st.slider(
+            "Período de Análisis",
+            min_value=min_date.to_pydatetime(),
+            max_value=max_date.to_pydatetime(),
+            value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
+            format="DD/MM/YYYY",
+            label_visibility="collapsed",
+            key="date_slider"
+        )
+        
+        # Convertir a tupla de fechas
+        date_range = (date_range_slider[0].date(), date_range_slider[1].date())
+        
+        # Mostrar fechas seleccionadas
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.caption(f"Desde: **{date_range[0].strftime('%d/%m/%Y')}**")
+        with col_info2:
+            st.caption(f"Hasta: **{date_range[1].strftime('%d/%m/%Y')}**")
     
-    # Sidebar para filtros
+    # Sidebar para filtros (fuera de tabs para que sea visible siempre)
     st.sidebar.header("Filtros")
     
     # Filtro de compañías
@@ -151,44 +213,24 @@ def main():
         placeholder="Todos"
     )
     
-    # Slider de fechas en el área principal (ANTES de filtrar datos)
-    st.markdown("##### Seleccionar Rango de Fechas")
-    date_range_slider = st.slider(
-        "Período de Análisis",
-        min_value=min_date.to_pydatetime(),
-        max_value=max_date.to_pydatetime(),
-        value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
-        format="DD/MM/YYYY",
-        label_visibility="collapsed",
-        key="date_slider"
-    )
-    
-    # Convertir a tupla de fechas
-    date_range = (date_range_slider[0].date(), date_range_slider[1].date())
-    
-    # Mostrar fechas seleccionadas
-    col_info1, col_info2 = st.columns(2)
-    with col_info1:
-        st.caption(f"Desde: **{date_range[0].strftime('%d/%m/%Y')}**")
-    with col_info2:
-        st.caption(f"Hasta: **{date_range[1].strftime('%d/%m/%Y')}**")
-    
-    # Aplicar filtros
-    filtered_df = filter_data(
-        df,
-        date_range=date_range,
-        companies=selected_companies if selected_companies else None,
-        transmissions=selected_transmissions if selected_transmissions else None,
-        genders=selected_genders if selected_genders else None
-    )
-    
-    # Calcular KPIs
-    kpis = calculate_kpis(filtered_df)
-    
-    st.markdown("---")
-    
-    # Sección de KPIs principales
-    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    # Continuar con tab1
+    with tab1:
+        # Aplicar filtros
+        filtered_df = filter_data(
+            df,
+            date_range=date_range,
+            companies=selected_companies if selected_companies else None,
+            transmissions=selected_transmissions if selected_transmissions else None,
+            genders=selected_genders if selected_genders else None
+        )
+        
+        # Calcular KPIs
+        kpis = calculate_kpis(filtered_df)
+        
+        st.markdown("---")
+        
+        # Sección de KPIs principales
+        kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
     
     with kpi_col1:
         st.markdown("### Ventas Anuales")
@@ -282,13 +324,22 @@ def main():
     st.header("Predicción de Ventas")
     st.markdown("Utiliza modelos de Machine Learning para predecir las ventas del próximo año.")
     
+    # Nota informativa sobre datos de predicción
+    st.info("""
+    ℹ️ **Nota:** Las predicciones se realizan utilizando únicamente los datos históricos originales (2022-2023).
+    Los nuevos registros añadidos manualmente no se incluyen en el modelo de predicción para mantener la consistencia del análisis.
+    """)
+    
+    # Filtrar datos para predicción (solo datos históricos hasta 2023)
+    df_prediction = df[df['Year'] <= 2023].copy()
+    
     # Sección de análisis ACF/PACF
     st.markdown("---")
     st.subheader("📊 Análisis de Autocorrelación (ACF/PACF)")
     
     # Mostrar gráficas ACF/PACF
     try:
-        X_temp, y_temp, dates_temp = prepare_data_for_prediction(df)
+        X_temp, y_temp, dates_temp = prepare_data_for_prediction(df_prediction)
         fig_acf_pacf = create_acf_pacf_plot(y_temp, max_lags=40)
         st.plotly_chart(fig_acf_pacf, use_container_width=True)
     except Exception as e:
@@ -367,8 +418,8 @@ def main():
     # Generar y mostrar predicción automáticamente
     with st.spinner('Generando predicción...'):
         try:
-            # Preparar datos
-            X, y, dates = prepare_data_for_prediction(df)
+            # Preparar datos (usando solo datos históricos hasta 2023)
+            X, y, dates = prepare_data_for_prediction(df_prediction)
             
             # Seleccionar y ejecutar el algoritmo
             if algorithm == "Regresión Lineal":
@@ -404,19 +455,19 @@ def main():
                 )
             
             with metric_col3:
-                # Calcular ventas del último año para comparación
-                last_year_sales = df[df['Year'] == df['Year'].max()]['Price ($)'].sum() / 1_000_000
+                # Calcular ventas del último año de los datos históricos (2023)
+                last_year_sales = df_prediction[df_prediction['Year'] == df_prediction['Year'].max()]['Price ($)'].sum() / 1_000_000
                 growth = ((summary['total_year'] - last_year_sales) / last_year_sales * 100)
                 st.metric(
                     label="Crecimiento Esperado",
                     value=f"{growth:+.1f}%",
                     delta=f"{growth:+.1f}%",
-                    help="Cambio porcentual respecto al último año"
+                    help="Cambio porcentual respecto al último año histórico (2023)"
                 )
             
             # Mostrar gráfico de predicción
             last_date = dates[-1]
-            fig_prediction = create_prediction_plot(df, predictions, model_name, last_date)
+            fig_prediction = create_prediction_plot(df_prediction, predictions, model_name, last_date)
             st.plotly_chart(fig_prediction, use_container_width=True)
             
             st.success("Predicción generada exitosamente!")
@@ -445,21 +496,38 @@ def main():
     # Opción para ver datos crudos
     st.sidebar.markdown("---")
     if st.sidebar.checkbox("Mostrar datos crudos"):
-        st.subheader("Datos Crudos")
-        st.dataframe(
-            filtered_df.head(100),
-            use_container_width=True,
-            height=400
-        )
-        
-        # Botón de descarga
-        csv = filtered_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Descargar datos filtrados (CSV)",
-            data=csv,
-            file_name=f"minsait_motors_data_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
+        with tab1:
+            st.subheader("Datos Crudos")
+            st.dataframe(
+                filtered_df.head(100),
+                use_container_width=True,
+                height=400
+            )
+            
+            # Botón de descarga
+            csv = filtered_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Descargar datos filtrados (CSV)",
+                data=csv,
+                file_name=f"minsait_motors_data_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+    
+    # TAB 2: Nueva Venta o Info
+    with tab2:
+        if user_role in ["admin", "writer"]:
+            show_new_sale_form()
+        else:
+            st.info("ℹ️ Solo los usuarios con rol **Admin** o **Writer** pueden añadir nuevas ventas.")
+            st.markdown("""
+            ### Roles y Permisos
+            
+            - **Reader**: Puede visualizar el dashboard y ver los datos
+            - **Writer**: Puede visualizar el dashboard y añadir nuevas ventas
+            - **Admin**: Acceso completo (visualizar, añadir, modificar y gestionar usuarios)
+            
+            Si necesitas permisos adicionales, contacta con un administrador.
+            """)
     
     # Footer
     st.markdown("---")

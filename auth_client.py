@@ -129,6 +129,25 @@ class AuthClient:
                 
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def create_sale(self, sale_data: Dict, token: str) -> Dict:
+        """Crea una nueva venta - Solo writers y admins"""
+        try:
+            response = requests.post(
+                f"{self.api_url}/sales",
+                json=sale_data,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            
+            if response.status_code == 201:
+                return {"success": True, "data": response.json()}
+            else:
+                error_detail = response.json().get("detail", "Error desconocido")
+                return {"success": False, "error": error_detail}
+                
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
 
 
 def init_session_state():
@@ -240,6 +259,110 @@ def show_user_management():
                         st.success(f"✓ Usuario '{new_username}' creado exitosamente con rol '{new_role}'")
                     else:
                         st.error(f"Error: {result['error']}")
+
+
+def show_new_sale_form():
+    """Muestra el formulario para añadir una nueva venta (solo para admin y writer)"""
+    st.markdown("### 🚗 Añadir Nueva Venta")
+    
+    # Verificar que el usuario tenga permisos
+    user_role = st.session_state.user_info.get("role")
+    if user_role not in ["admin", "writer"]:
+        st.warning("⚠️ Solo los administradores y editores pueden añadir ventas.")
+        return
+    
+    auth_client = AuthClient()
+    
+    with st.form("new_sale_form"):
+        st.markdown("#### Información de la Venta")
+        
+        # Organizar en columnas para mejor UX
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Datos del Cliente**")
+            customer_name = st.text_input("Nombre del Cliente *", placeholder="Ej: John Doe")
+            gender = st.selectbox("Género *", options=["Male", "Female"])
+            annual_income = st.number_input("Ingreso Anual ($) *", min_value=0.0, step=1000.0, format="%.2f")
+            phone = st.text_input("Teléfono *", placeholder="+1234567890")
+        
+        with col2:
+            st.markdown("**Datos del Distribuidor**")
+            dealer_name = st.text_input("Nombre del Distribuidor *", placeholder="Ej: AutoMax Dealers")
+            dealer_no = st.text_input("Número de Distribuidor *", placeholder="Ej: D001")
+            dealer_region = st.selectbox(
+                "Región del Distribuidor *",
+                options=["North", "South", "East", "West", "Central"]
+            )
+            date = st.date_input("Fecha de Venta *")
+        
+        st.markdown("---")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            st.markdown("**Datos del Vehículo**")
+            company = st.text_input("Marca *", placeholder="Ej: Toyota")
+            model = st.text_input("Modelo *", placeholder="Ej: Camry")
+            engine = st.text_input("Motor *", placeholder="Ej: 2.5L 4-Cylinder")
+            transmission = st.selectbox("Transmisión *", options=["Automatic", "Manual"])
+        
+        with col4:
+            st.markdown("**Características**")
+            color = st.text_input("Color *", placeholder="Ej: Silver")
+            body_style = st.selectbox(
+                "Estilo de Carrocería *",
+                options=["Sedan", "SUV", "Hatchback", "Coupe", "Truck", "Van", "Convertible"]
+            )
+            price = st.number_input("Precio ($) *", min_value=0.0, step=100.0, format="%.2f")
+        
+        st.markdown("---")
+        st.caption("* Campos obligatorios")
+        
+        submit = st.form_submit_button("💾 Guardar Venta", use_container_width=True, type="primary")
+        
+        if submit:
+            # Validar campos obligatorios
+            if not all([customer_name, dealer_name, company, model, engine, color, dealer_no, phone]):
+                st.error("❌ Por favor completa todos los campos obligatorios")
+            elif annual_income <= 0:
+                st.error("❌ El ingreso anual debe ser mayor a 0")
+            elif price <= 0:
+                st.error("❌ El precio debe ser mayor a 0")
+            else:
+                # Preparar datos para enviar a la API
+                sale_data = {
+                    "date": date.isoformat(),
+                    "customer_name": customer_name,
+                    "gender": gender,
+                    "annual_income": annual_income,
+                    "dealer_name": dealer_name,
+                    "company": company,
+                    "model": model,
+                    "engine": engine,
+                    "transmission": transmission,
+                    "color": color,
+                    "price": price,
+                    "dealer_no": dealer_no,
+                    "body_style": body_style,
+                    "phone": phone,
+                    "dealer_region": dealer_region
+                }
+                
+                with st.spinner("Guardando venta..."):
+                    result = auth_client.create_sale(sale_data, st.session_state.token)
+                    
+                    if result["success"]:
+                        st.success(f"✅ Venta registrada exitosamente!")
+                        st.markdown(f"""
+                        **Detalles de la venta:**
+                        - Cliente: {customer_name}
+                        - Vehículo: {company} {model}
+                        - Precio: ${price:,.2f}
+                        - Fecha: {date.strftime('%d/%m/%Y')}
+                        """)
+                    else:
+                        st.error(f"❌ Error al guardar la venta: {result['error']}")
 
 
 def require_auth(func):

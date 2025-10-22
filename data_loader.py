@@ -20,8 +20,8 @@ def load_data():
     # Cargar datos desde la tabla car_sales
     df = pd.read_sql("SELECT * FROM car_sales", engine)
     
-    # Convertir la columna Date a formato datetime
-    df['Date'] = pd.to_datetime(df['Date'])
+    # Convertir la columna Date a formato datetime (maneja múltiples formatos)
+    df['Date'] = pd.to_datetime(df['Date'], format='mixed', dayfirst=False)
     
     # Extraer año y mes para análisis temporal
     df['Year'] = df['Date'].dt.year
