@@ -26,7 +26,7 @@ from predictions import (
     get_prediction_summary,
     create_acf_pacf_plot
 )
-from auth_client import init_session_state, login_page, logout
+from auth_client import init_session_state, login_page, logout, show_user_management
 
 # Configuración de la página
 st.set_page_config(
@@ -424,6 +424,12 @@ def main():
         except Exception as e:
             st.error(f"Error al generar la predicción: {str(e)}")
             st.info("Asegúrate de tener suficientes datos históricos para entrenar el modelo.")
+    
+    # Panel de gestión de usuarios (solo para admin)
+    st.sidebar.markdown("---")
+    if st.session_state.user_info and st.session_state.user_info.get("role") == "admin":
+        with st.sidebar.expander("👥 Gestionar Usuarios"):
+            show_user_management()
     
     # Información adicional en el sidebar
     st.sidebar.markdown("---")
