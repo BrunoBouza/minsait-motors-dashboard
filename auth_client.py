@@ -284,7 +284,7 @@ def show_new_sale_form():
             customer_name = st.text_input("Nombre del Cliente *", placeholder="Ej: John Doe")
             gender = st.selectbox("Género *", options=["Male", "Female"])
             annual_income = st.number_input("Ingreso Anual ($) *", min_value=0.0, step=1000.0, format="%.2f")
-            phone = st.text_input("Teléfono *", placeholder="+1234567890")
+            phone = st.number_input("Teléfono * (solo números)", min_value=0, step=1, format="%d", help="Ejemplo: 1234567890")
         
         with col2:
             st.markdown("**Datos del Distribuidor**")
@@ -323,12 +323,14 @@ def show_new_sale_form():
         
         if submit:
             # Validar campos obligatorios
-            if not all([customer_name, dealer_name, company, model, engine, color, dealer_no, phone]):
+            if not all([customer_name, dealer_name, company, model, engine, color, dealer_no]):
                 st.error("❌ Por favor completa todos los campos obligatorios")
             elif annual_income <= 0:
                 st.error("❌ El ingreso anual debe ser mayor a 0")
             elif price <= 0:
                 st.error("❌ El precio debe ser mayor a 0")
+            elif phone <= 0:
+                st.error("❌ El teléfono debe ser un número válido mayor a 0")
             else:
                 # Preparar datos para enviar a la API
                 sale_data = {
