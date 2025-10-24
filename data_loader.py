@@ -3,37 +3,82 @@ Módulo para cargar y preparar los datos del dashboard de Minsait Motors
 """
 import pandas as pd
 import streamlit as st
-from sqlalchemy import create_engine
+from auth_client import AuthClient
 
 @st.cache_data
-def load_data():
+def load_data(_token: str):
     """
-    Carga los datos desde la base de datos Neon PostgreSQL y realiza las transformaciones iniciales necesarias.
+    Carga los datos desde la API de Minsait Motors y realiza las transformaciones iniciales necesarias.
+    
+    Args:
+        _token (str): Token de autenticación (el guion bajo evita que se use en el hash del cache)
     
     Returns:
         pd.DataFrame: DataFrame con los datos de ventas de vehículos
     """
-    # Conexión a la base de datos Neon usando secrets
-    connection_string = st.secrets["connections"]["neon"]["url"]
-    engine = create_engine(connection_string)
+    # Obtener datos desde la API (sin límite para obtener todos los registros)
+    auth_client = AuthClient()
+    result = auth_client.get_sales(_token)
     
-    # Cargar datos desde la tabla car_sales
-    df = pd.read_sql("SELECT * FROM car_sales", engine)
+    if not result["success"]:
+        st.error(f"Error al cargar datos desde la API: {result['error']}")
+        st.info("Verifica que la API esté funcionando correctamente.")
+        return pd.DataFrame()
     
-    # Convertir la columna Date a formato datetime (maneja múltiples formatos)
-    df['Date'] = pd.to_datetime(df['Date'], format='mixed', dayfirst=False)
+    # Convertir a DataFrame
+    df = pd.DataFrame(result["data"])
+    
+    if df.empty:
+        st.warning("No hay datos disponibles en la base de datos.")
+        return df
+    
+    # Renombrar columnas para mantener compatibilidad con el resto del código
+    # La API devuelve 'id' pero el código espera 'Car_id'
+    if 'id' in df.columns:
+        df.rename(columns={'id': 'Car_id'}, inplace=True)
+    
+    # Convertir la columna date a formato datetime
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        # Renombrar a Date para mantener compatibilidad
+        df.rename(columns={'date': 'Date'}, inplace=True)
+    else:
+        st.error("Error: La columna 'date' no existe en los datos recibidos de la API")
+        return pd.DataFrame()
+    
+    # Renombrar otras columnas para mantener compatibilidad con visualizaciones
+    column_mapping = {
+        'customer_name': 'Customer Name',
+        'gender': 'Gender',
+        'annual_income': 'Annual Income',
+        'dealer_name': 'Dealer_Name',
+        'company': 'Company',
+        'model': 'Model',
+        'engine': 'Engine',
+        'transmission': 'Transmission',
+        'color': 'Color',
+        'price': 'Price ($)',
+        'dealer_no': 'Dealer_No ',
+        'body_style': 'Body Style',
+        'phone': 'Phone',
+        'dealer_region': 'Dealer_Region'
+    }
+    
+    # Solo renombrar las columnas que existen
+    existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
+    df.rename(columns=existing_columns, inplace=True)
     
     # Extraer año y mes para análisis temporal
-    df['Year'] = df['Date'].dt.year
-    df['Month'] = df['Date'].dt.month
-    df['Month_Name'] = df['Date'].dt.strftime('%B')
-    df['Year_Month'] = df['Date'].dt.to_period('M')
+    if 'Date' in df.columns:
+        df['Year'] = df['Date'].dt.year
+        df['Month'] = df['Date'].dt.month
+        df['Month_Name'] = df['Date'].dt.strftime('%B')
+        df['Year_Month'] = df['Date'].dt.to_period('M')
     
-    # Limpiar espacios en blanco en las columnas de texto
-    df['Company'] = df['Company'].str.strip()
-    df['Model'] = df['Model'].str.strip()
-    df['Transmission'] = df['Transmission'].str.strip()
-    df['Gender'] = df['Gender'].str.strip()
+    # Limpiar espacios en blanco en las columnas de texto (solo si existen)
+    for col in ['Company', 'Model', 'Transmission', 'Gender']:
+        if col in df.columns:
+            df[col] = df[col].str.strip()
     
     return df
 

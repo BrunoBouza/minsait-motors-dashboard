@@ -130,6 +130,29 @@ class AuthClient:
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": f"Error de conexión: {str(e)}"}
     
+    def get_sales(self, token: str, skip: int = 0, limit: int = None) -> Dict:
+        """Obtiene la lista de ventas - Todos los usuarios autenticados"""
+        try:
+            params = {"skip": skip}
+            if limit is not None:
+                params["limit"] = limit
+            
+            response = requests.get(
+                f"{self.api_url}/sales",
+                params=params,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=60  # Aumentar timeout para cargar todos los datos
+            )
+            
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                error_detail = response.json().get("detail", "Error desconocido")
+                return {"success": False, "error": error_detail}
+                
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
     def create_sale(self, sale_data: Dict, token: str) -> Dict:
         """Crea una nueva venta - Solo writers y admins"""
         try:

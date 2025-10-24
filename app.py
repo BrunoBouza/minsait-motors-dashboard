@@ -149,8 +149,13 @@ def main():
         tab1, tab2 = st.tabs(["📊 DASHBOARD", "ℹ️ INFORMACIÓN"])
     
     # Cargar los datos (fuera de las pestañas para usarlos en ambas)
-    with st.spinner('Cargando datos...'):
-        df = load_data()
+    with st.spinner('Cargando datos desde la API...'):
+        df = load_data(st.session_state.token)
+    
+    # Verificar si hay datos
+    if df.empty or 'Date' not in df.columns:
+        st.error("⚠️ No se pudieron cargar los datos. Por favor verifica la conexión con la API.")
+        st.stop()
     
     # TAB 1: Dashboard de Análisis
     with tab1:
