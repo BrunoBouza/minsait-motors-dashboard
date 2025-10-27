@@ -171,6 +171,259 @@ class AuthClient:
                 
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    # ==================== ENDPOINTS RBAC ====================
+    
+    # Usuarios
+    def get_usuarios(self, token: str) -> Dict:
+        """Obtiene la lista de usuarios - Solo admins"""
+        try:
+            response = requests.get(
+                f"{self.api_url}/usuarios",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def update_usuario(self, usuario_id: int, data: Dict, token: str) -> Dict:
+        """Actualiza un usuario - Solo admins"""
+        try:
+            response = requests.put(
+                f"{self.api_url}/usuarios/{usuario_id}",
+                json=data,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def delete_usuario(self, usuario_id: int, token: str) -> Dict:
+        """Elimina un usuario - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/usuarios/{usuario_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 204:
+                return {"success": True}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    # Grupos
+    def get_grupos(self, token: str) -> Dict:
+        """Obtiene la lista de grupos - Solo admins"""
+        try:
+            response = requests.get(
+                f"{self.api_url}/grupos",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def create_grupo(self, data: Dict, token: str) -> Dict:
+        """Crea un nuevo grupo - Solo admins"""
+        try:
+            response = requests.post(
+                f"{self.api_url}/grupos",
+                json=data,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 201:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def update_grupo(self, grupo_id: int, data: Dict, token: str) -> Dict:
+        """Actualiza un grupo - Solo admins"""
+        try:
+            response = requests.put(
+                f"{self.api_url}/grupos/{grupo_id}",
+                json=data,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def delete_grupo(self, grupo_id: int, token: str) -> Dict:
+        """Elimina un grupo - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/grupos/{grupo_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 204:
+                return {"success": True}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    # Roles
+    def get_roles(self, token: str) -> Dict:
+        """Obtiene la lista de roles - Solo admins"""
+        try:
+            response = requests.get(
+                f"{self.api_url}/roles",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def create_rol(self, data: Dict, token: str) -> Dict:
+        """Crea un nuevo rol - Solo admins"""
+        try:
+            response = requests.post(
+                f"{self.api_url}/roles",
+                json=data,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 201:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    # Asignaciones
+    def asignar_usuario_grupo(self, usuario_id: int, grupo_id: int, token: str) -> Dict:
+        """Asigna un usuario a un grupo - Solo admins"""
+        try:
+            response = requests.post(
+                f"{self.api_url}/usuarios/{usuario_id}/grupos",
+                json={"grupo_id": grupo_id},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def remover_usuario_grupo(self, usuario_id: int, grupo_id: int, token: str) -> Dict:
+        """Remueve un usuario de un grupo - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/usuarios/{usuario_id}/grupos/{grupo_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def asignar_rol_grupo(self, grupo_id: int, rol_id: int, token: str) -> Dict:
+        """Asigna un rol a un grupo - Solo admins"""
+        try:
+            response = requests.post(
+                f"{self.api_url}/grupos/{grupo_id}/roles",
+                json={"rol_id": rol_id},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def asignar_rol_usuario(self, usuario_id: int, rol_id: int, token: str) -> Dict:
+        """Asigna un rol directo a un usuario - Solo admins"""
+        try:
+            response = requests.post(
+                f"{self.api_url}/usuarios/{usuario_id}/roles",
+                json={"rol_id": rol_id},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def get_permisos_usuario(self, usuario_id: int, token: str) -> Dict:
+        """Obtiene todos los permisos de un usuario"""
+        try:
+            response = requests.get(
+                f"{self.api_url}/usuarios/{usuario_id}/permisos",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def get_roles_usuario(self, usuario_id: int, token: str) -> Dict:
+        """Obtiene todos los roles de un usuario (directos y por grupos)"""
+        try:
+            response = requests.get(
+                f"{self.api_url}/usuarios/{usuario_id}/roles",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def get_roles_grupo(self, grupo_id: int, token: str) -> Dict:
+        """Obtiene todos los roles asignados a un grupo"""
+        try:
+            response = requests.get(
+                f"{self.api_url}/grupos/{grupo_id}/roles",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
 
 
 def init_session_state():

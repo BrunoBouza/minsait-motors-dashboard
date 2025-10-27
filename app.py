@@ -27,6 +27,7 @@ from predictions import (
     create_acf_pacf_plot
 )
 from auth_client import init_session_state, login_page, logout, show_user_management, show_new_sale_form
+from rbac_admin import show_rbac_admin
 
 # Configuración de la página
 st.set_page_config(
@@ -144,9 +145,12 @@ def main():
     
     # Mostrar pestaña de añadir venta solo para admin y writer
     if user_role in ["admin", "writer"]:
-        tab1, tab2 = st.tabs(["📊 DASHBOARD", "➕ NUEVA VENTA"])
+        if user_role == "admin":
+            tab1, tab2, tab3 = st.tabs(["📊 DASHBOARD", "➕ NUEVA VENTA", "⚙️ ADMINISTRACIÓN RBAC"])
+        else:
+            tab1, tab2, tab3 = st.tabs(["📊 DASHBOARD", "➕ NUEVA VENTA", "ℹ️ INFORMACIÓN"])
     else:
-        tab1, tab2 = st.tabs(["📊 DASHBOARD", "ℹ️ INFORMACIÓN"])
+        tab1, tab2, tab3 = st.tabs(["📊 DASHBOARD", "ℹ️ INFORMACIÓN", ""])  # Tab vacío
     
     # Cargar los datos (fuera de las pestañas para usarlos en ambas)
     with st.spinner('Cargando datos desde la API...'):
@@ -533,6 +537,26 @@ def main():
             
             Si necesitas permisos adicionales, contacta con un administrador.
             """)
+    
+    # TAB 3: Administración RBAC (solo para admin)
+    with tab3:
+        if user_role == "admin":
+            show_rbac_admin()
+        elif user_role == "writer":
+            st.info("ℹ️ Esta funcionalidad está disponible solo para administradores.")
+            st.markdown("""
+            ### Administración RBAC
+            
+            Los administradores pueden gestionar:
+            - **Usuarios**: Crear, editar, eliminar usuarios
+            - **Grupos**: Organizar usuarios en equipos
+            - **Roles**: Definir permisos y accesos
+            - **Asignaciones**: Asignar usuarios a grupos y roles
+            
+            Contacta con un administrador si necesitas hacer cambios en el sistema de permisos.
+            """)
+        else:
+            pass  # Tab vacío para readers
     
     # Footer
     st.markdown("---")
