@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 from auth_client import AuthClient
 
-@st.cache_data
+@st.cache_data(ttl=60)  # Cache se actualiza cada 60 segundos
 def load_data(_token: str):
     """
     Carga los datos desde la API de Minsait Motors y realiza las transformaciones iniciales necesarias.
@@ -20,7 +20,7 @@ def load_data(_token: str):
     auth_client = AuthClient()
     result = auth_client.get_sales(_token)
     
-    if not result["success"]:
+    if not result["success"]:   
         st.error(f"Error al cargar datos desde la API: {result['error']}")
         st.info("Verifica que la API esté funcionando correctamente.")
         return pd.DataFrame()

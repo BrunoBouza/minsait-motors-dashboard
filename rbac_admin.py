@@ -82,25 +82,48 @@ def show_usuarios_management(auth_client: AuthClient):
     df_usuarios['roles_str'] = df_usuarios['roles'].apply(
         lambda x: '🔑 ' + ', '.join(x) if isinstance(x, list) and x else '-'
     )
-    df_usuarios['activo_str'] = df_usuarios['is_active'].apply(
-        lambda x: '✅' if x else '❌'
-    )
     
-    # Mostrar tabla con grupos y roles
+    # Mostrar tabla con grupos y roles (sin is_active)
     st.dataframe(
-        df_usuarios[['id', 'username', 'email', 'nombre_completo', 'grupos_str', 'roles_str', 'activo_str']].rename(
+        df_usuarios[['id', 'username', 'email', 'nombre_completo', 'grupos_str', 'roles_str']].rename(
             columns={
                 'username': 'Usuario',
                 'email': 'Email',
                 'nombre_completo': 'Nombre',
                 'grupos_str': 'Grupos',
-                'roles_str': 'Roles',
-                'activo_str': 'Estado'
+                'roles_str': 'Roles'
             }
         ),
         width='stretch',
         hide_index=True
     )
+    
+    # Sección para eliminar usuario
+    st.markdown("---")
+    col_delete, col_spacer = st.columns([3, 1])
+    with col_delete:
+        st.markdown("### 🗑️ Eliminar Usuario")
+        
+        col_select, col_btn = st.columns([3, 1])
+        with col_select:
+            usuario_a_eliminar = st.selectbox(
+                "Seleccionar usuario a eliminar",
+                options=[u['username'] for u in usuarios],
+                key="delete_usuario_select"
+            )
+        with col_btn:
+            if st.button("🗑️ Eliminar", key="btn_delete_usuario", type="secondary"):
+                usuario = next((u for u in usuarios if u['username'] == usuario_a_eliminar), None)
+                if usuario:
+                    if st.session_state.user_info.get('username') == usuario['username']:
+                        st.error("❌ No puedes eliminarte a ti mismo")
+                    else:
+                        result = auth_client.delete_usuario(usuario['id'], st.session_state.token)
+                        if result["success"]:
+                            st.success(f"✅ Usuario '{usuario['username']}' eliminado exitosamente")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
     
     st.markdown("---")
     
@@ -119,8 +142,6 @@ def show_usuarios_management(auth_client: AuthClient):
                 nuevo_password = st.text_input("Contraseña *", type="password", key="nuevo_password")
                 nuevo_nombre = st.text_input("Nombre Completo", key="nuevo_nombre")
             
-            nuevo_activo = st.checkbox("Usuario activo", value=True, key="nuevo_activo")
-            
             col_submit, col_cancel = st.columns(2)
             with col_submit:
                 submit = st.form_submit_button("💾 Crear Usuario", width='stretch', type="primary")
@@ -135,14 +156,6 @@ def show_usuarios_management(auth_client: AuthClient):
                 if not nuevo_username or not nuevo_password:
                     st.error("Username y contraseña son obligatorios")
                 else:
-                    data = {
-                        "username": nuevo_username,
-                        "password": nuevo_password,
-                        "email": nuevo_email if nuevo_email else None,
-                        "nombre_completo": nuevo_nombre if nuevo_nombre else None,
-                        "is_active": nuevo_activo
-                    }
-                    
                     result = auth_client.register(
                         nuevo_username,
                         nuevo_password,
@@ -241,23 +254,44 @@ def show_grupos_management(auth_client: AuthClient):
         df_grupos['roles_str'] = df_grupos['roles'].apply(
             lambda x: '🔐 ' + ', '.join(x) if isinstance(x, list) and x else '-'
         )
-        df_grupos['activo_str'] = df_grupos['is_active'].apply(
-            lambda x: '✅' if x else '❌'
-        )
         
         st.dataframe(
-            df_grupos[['id', 'nombre', 'descripcion', 'roles_str', 'usuarios_count', 'activo_str']].rename(
+            df_grupos[['id', 'nombre', 'descripcion', 'roles_str', 'usuarios_count']].rename(
                 columns={
                     'nombre': 'Grupo',
                     'descripcion': 'Descripción',
                     'roles_str': 'Roles',
-                    'usuarios_count': 'Usuarios',
-                    'activo_str': 'Estado'
+                    'usuarios_count': 'Usuarios'
                 }
             ),
             width='stretch',
             hide_index=True
         )
+    
+    # Sección para eliminar grupo
+    st.markdown("---")
+    col_delete, col_spacer = st.columns([3, 1])
+    with col_delete:
+        st.markdown("### 🗑️ Eliminar Grupo")
+        
+        if grupos:
+            col_select, col_btn = st.columns([3, 1])
+            with col_select:
+                grupo_a_eliminar = st.selectbox(
+                    "Seleccionar grupo a eliminar",
+                    options=[g['nombre'] for g in grupos],
+                    key="delete_grupo_select"
+                )
+            with col_btn:
+                if st.button("🗑️ Eliminar", key="btn_delete_grupo", type="secondary"):
+                    grupo = next((g for g in grupos if g['nombre'] == grupo_a_eliminar), None)
+                    if grupo:
+                        result = auth_client.delete_grupo(grupo['id'], st.session_state.token)
+                        if result["success"]:
+                            st.success(f"✅ Grupo '{grupo['nombre']}' eliminado exitosamente")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
     
     st.markdown("---")
     
@@ -271,9 +305,8 @@ def show_grupos_management(auth_client: AuthClient):
             col1, col2 = st.columns(2)
             with col1:
                 nuevo_nombre = st.text_input("Nombre *", key="nuevo_grupo_nombre", help="Nombre único del grupo (ej: Ventas, Soporte)")
-                nuevo_descripcion = st.text_area("Descripción", key="nuevo_grupo_descripcion")
             with col2:
-                nuevo_activo = st.checkbox("Grupo activo", value=True, key="nuevo_grupo_activo")
+                nuevo_descripcion = st.text_area("Descripción", key="nuevo_grupo_descripcion")
             
             col_submit, col_cancel = st.columns(2)
             with col_submit:
@@ -291,8 +324,7 @@ def show_grupos_management(auth_client: AuthClient):
                 else:
                     data = {
                         "nombre": nuevo_nombre,
-                        "descripcion": nuevo_descripcion if nuevo_descripcion else None,
-                        "is_active": nuevo_activo
+                        "descripcion": nuevo_descripcion if nuevo_descripcion else None
                     }
                     
                     result = auth_client.create_grupo(data, st.session_state.token)
@@ -358,15 +390,46 @@ def show_roles_management(auth_client: AuthClient):
     if not roles:
         st.info("No hay roles registrados")
     else:
-        # Mostrar tabla de roles
+        # Mostrar tabla de roles (sin is_active)
         st.markdown("### Lista de Roles")
         
         df_roles = pd.DataFrame(roles)
         st.dataframe(
-            df_roles[['id', 'codigo', 'nombre', 'descripcion', 'is_active']],
+            df_roles[['id', 'codigo', 'nombre', 'descripcion']].rename(
+                columns={
+                    'codigo': 'Código',
+                    'nombre': 'Nombre',
+                    'descripcion': 'Descripción'
+                }
+            ),
             width='stretch',
             hide_index=True
         )
+    
+    # Sección para eliminar rol
+    st.markdown("---")
+    col_delete, col_spacer = st.columns([3, 1])
+    with col_delete:
+        st.markdown("### 🗑️ Eliminar Rol")
+        
+        if roles:
+            col_select, col_btn = st.columns([3, 1])
+            with col_select:
+                rol_a_eliminar = st.selectbox(
+                    "Seleccionar rol a eliminar",
+                    options=[r['nombre'] for r in roles],
+                    key="delete_rol_select"
+                )
+            with col_btn:
+                if st.button("🗑️ Eliminar", key="btn_delete_rol", type="secondary"):
+                    rol = next((r for r in roles if r['nombre'] == rol_a_eliminar), None)
+                    if rol:
+                        result = auth_client.delete_rol(rol['id'], st.session_state.token)
+                        if result["success"]:
+                            st.success(f"✅ Rol '{rol['nombre']}' eliminado exitosamente")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
     
     st.markdown("---")
     
@@ -380,10 +443,10 @@ def show_roles_management(auth_client: AuthClient):
             col1, col2 = st.columns(2)
             with col1:
                 nuevo_codigo = st.text_input("Código *", key="nuevo_rol_codigo", help="Código único del rol (ej: manager)")
-                nuevo_nombre = st.text_input("Nombre *", key="nuevo_rol_nombre", help="Nombre descriptivo del rol")
             with col2:
-                nuevo_descripcion = st.text_area("Descripción", key="nuevo_rol_descripcion")
-                nuevo_activo = st.checkbox("Rol activo", value=True, key="nuevo_rol_activo")
+                nuevo_nombre = st.text_input("Nombre *", key="nuevo_rol_nombre", help="Nombre descriptivo del rol")
+            
+            nuevo_descripcion = st.text_area("Descripción", key="nuevo_rol_descripcion")
             
             col_submit, col_cancel = st.columns(2)
             with col_submit:
@@ -402,8 +465,7 @@ def show_roles_management(auth_client: AuthClient):
                     data = {
                         "codigo": nuevo_codigo,
                         "nombre": nuevo_nombre,
-                        "descripcion": nuevo_descripcion if nuevo_descripcion else None,
-                        "is_active": nuevo_activo
+                        "descripcion": nuevo_descripcion if nuevo_descripcion else None
                     }
                     
                     result = auth_client.create_rol(data, st.session_state.token)
@@ -449,115 +511,217 @@ def show_asignaciones_management(auth_client: AuthClient):
     
     # TAB 1: Asignar Usuario a Grupo
     with tab1:
-        st.markdown("### Asignar Usuario a Grupo")
+        col_asignar, col_remover = st.columns(2)
         
-        with st.form("form_asignar_usuario_grupo"):
-            col1, col2 = st.columns(2)
-            with col1:
+        with col_asignar:
+            st.markdown("### ➕ Asignar Usuario a Grupo")
+            
+            with st.form("form_asignar_usuario_grupo"):
                 usuario_sel = st.selectbox(
-                    "Seleccionar Usuario",
+                    "Usuario",
                     options=[u['username'] for u in usuarios],
                     key="asign_usuario_grupo_usuario"
                 )
-            with col2:
                 grupo_sel = st.selectbox(
-                    "Seleccionar Grupo",
+                    "Grupo",
                     options=[g['nombre'] for g in grupos],
                     key="asign_usuario_grupo_grupo"
                 )
-            
-            submit = st.form_submit_button("➕ Asignar", width='stretch', type="primary")
-            
-            if submit:
-                usuario = next((u for u in usuarios if u['username'] == usuario_sel), None)
-                grupo = next((g for g in grupos if g['nombre'] == grupo_sel), None)
                 
-                if usuario and grupo:
-                    result = auth_client.asignar_usuario_grupo(
-                        usuario['id'],
-                        grupo['id'],
-                        st.session_state.token
-                    )
+                submit = st.form_submit_button("➕ Asignar", width='stretch', type="primary")
+                
+                if submit:
+                    usuario = next((u for u in usuarios if u['username'] == usuario_sel), None)
+                    grupo = next((g for g in grupos if g['nombre'] == grupo_sel), None)
                     
-                    if result["success"]:
-                        st.success(f"✅ {result['data']['message']}")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Error: {result['error']}")
+                    if usuario and grupo:
+                        result = auth_client.asignar_usuario_grupo(
+                            usuario['id'],
+                            grupo['id'],
+                            st.session_state.token
+                        )
+                        
+                        if result["success"]:
+                            st.success(f"✅ {result['data']['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
+        
+        with col_remover:
+            st.markdown("### ➖ Remover Usuario de Grupo")
+            
+            with st.form("form_remover_usuario_grupo"):
+                usuario_rem = st.selectbox(
+                    "Usuario",
+                    options=[u['username'] for u in usuarios],
+                    key="rem_usuario_grupo_usuario"
+                )
+                grupo_rem = st.selectbox(
+                    "Grupo",
+                    options=[g['nombre'] for g in grupos],
+                    key="rem_usuario_grupo_grupo"
+                )
+                
+                submit_rem = st.form_submit_button("➖ Remover", width='stretch', type="secondary")
+                
+                if submit_rem:
+                    usuario = next((u for u in usuarios if u['username'] == usuario_rem), None)
+                    grupo = next((g for g in grupos if g['nombre'] == grupo_rem), None)
+                    
+                    if usuario and grupo:
+                        result = auth_client.remover_usuario_grupo(
+                            usuario['id'],
+                            grupo['id'],
+                            st.session_state.token
+                        )
+                        
+                        if result["success"]:
+                            st.success(f"✅ {result['data']['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
     
     # TAB 2: Asignar Rol a Grupo
     with tab2:
-        st.markdown("### Asignar Rol a Grupo")
+        col_asignar, col_remover = st.columns(2)
         
-        with st.form("form_asignar_rol_grupo"):
-            col1, col2 = st.columns(2)
-            with col1:
+        with col_asignar:
+            st.markdown("### ➕ Asignar Rol a Grupo")
+            
+            with st.form("form_asignar_rol_grupo"):
                 grupo_sel = st.selectbox(
-                    "Seleccionar Grupo",
+                    "Grupo",
                     options=[g['nombre'] for g in grupos],
                     key="asign_rol_grupo_grupo"
                 )
-            with col2:
                 rol_sel = st.selectbox(
-                    "Seleccionar Rol",
+                    "Rol",
                     options=[r['nombre'] for r in roles],
                     key="asign_rol_grupo_rol"
                 )
-            
-            submit = st.form_submit_button("➕ Asignar", width='stretch', type="primary")
-            
-            if submit:
-                grupo = next((g for g in grupos if g['nombre'] == grupo_sel), None)
-                rol = next((r for r in roles if r['nombre'] == rol_sel), None)
                 
-                if grupo and rol:
-                    result = auth_client.asignar_rol_grupo(
-                        grupo['id'],
-                        rol['id'],
-                        st.session_state.token
-                    )
+                submit = st.form_submit_button("➕ Asignar", width='stretch', type="primary")
+                
+                if submit:
+                    grupo = next((g for g in grupos if g['nombre'] == grupo_sel), None)
+                    rol = next((r for r in roles if r['nombre'] == rol_sel), None)
                     
-                    if result["success"]:
-                        st.success(f"✅ {result['data']['message']}")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Error: {result['error']}")
+                    if grupo and rol:
+                        result = auth_client.asignar_rol_grupo(
+                            grupo['id'],
+                            rol['id'],
+                            st.session_state.token
+                        )
+                        
+                        if result["success"]:
+                            st.success(f"✅ {result['data']['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
+        
+        with col_remover:
+            st.markdown("### ➖ Remover Rol de Grupo")
+            
+            with st.form("form_remover_rol_grupo"):
+                grupo_rem = st.selectbox(
+                    "Grupo",
+                    options=[g['nombre'] for g in grupos],
+                    key="rem_rol_grupo_grupo"
+                )
+                rol_rem = st.selectbox(
+                    "Rol",
+                    options=[r['nombre'] for r in roles],
+                    key="rem_rol_grupo_rol"
+                )
+                
+                submit_rem = st.form_submit_button("➖ Remover", width='stretch', type="secondary")
+                
+                if submit_rem:
+                    grupo = next((g for g in grupos if g['nombre'] == grupo_rem), None)
+                    rol = next((r for r in roles if r['nombre'] == rol_rem), None)
+                    
+                    if grupo and rol:
+                        result = auth_client.remover_rol_grupo(
+                            grupo['id'],
+                            rol['id'],
+                            st.session_state.token
+                        )
+                        
+                        if result["success"]:
+                            st.success(f"✅ {result['data']['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
     
     # TAB 3: Asignar Rol directo a Usuario
     with tab3:
-        st.markdown("### Asignar Rol Directo a Usuario")
-        st.info("Los roles directos se asignan al usuario sin necesidad de un grupo intermedio")
+        col_asignar, col_remover = st.columns(2)
         
-        with st.form("form_asignar_rol_usuario"):
-            col1, col2 = st.columns(2)
-            with col1:
+        with col_asignar:
+            st.markdown("### ➕ Asignar Rol Directo a Usuario")
+            st.info("Los roles directos se asignan sin grupo intermedio")
+            
+            with st.form("form_asignar_rol_usuario"):
                 usuario_sel = st.selectbox(
-                    "Seleccionar Usuario",
+                    "Usuario",
                     options=[u['username'] for u in usuarios],
                     key="asign_rol_usuario_usuario"
                 )
-            with col2:
                 rol_sel = st.selectbox(
-                    "Seleccionar Rol",
+                    "Rol",
                     options=[r['nombre'] for r in roles],
                     key="asign_rol_usuario_rol"
                 )
-            
-            submit = st.form_submit_button("➕ Asignar", width='stretch', type="primary")
-            
-            if submit:
-                usuario = next((u for u in usuarios if u['username'] == usuario_sel), None)
-                rol = next((r for r in roles if r['nombre'] == rol_sel), None)
                 
-                if usuario and rol:
-                    result = auth_client.asignar_rol_usuario(
-                        usuario['id'],
-                        rol['id'],
-                        st.session_state.token
-                    )
+                submit = st.form_submit_button("➕ Asignar", width='stretch', type="primary")
+                
+                if submit:
+                    usuario = next((u for u in usuarios if u['username'] == usuario_sel), None)
+                    rol = next((r for r in roles if r['nombre'] == rol_sel), None)
                     
-                    if result["success"]:
-                        st.success(f"✅ {result['data']['message']}")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Error: {result['error']}")
+                    if usuario and rol:
+                        result = auth_client.asignar_rol_usuario(
+                            usuario['id'],
+                            rol['id'],
+                            st.session_state.token
+                        )
+                        
+                        if result["success"]:
+                            st.success(f"✅ {result['data']['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")
+        
+        with col_remover:
+            st.markdown("### ➖ Remover Rol de Usuario")
+            
+            with st.form("form_remover_rol_usuario"):
+                usuario_rem = st.selectbox(
+                    "Usuario",
+                    options=[u['username'] for u in usuarios],
+                    key="rem_rol_usuario_usuario"
+                )
+                rol_rem = st.selectbox(
+                    "Rol",
+                    options=[r['nombre'] for r in roles],
+                    key="rem_rol_usuario_rol"
+                )
+                
+                submit_rem = st.form_submit_button("➖ Remover", width='stretch', type="secondary")
+                
+                if submit_rem:
+                    usuario = next((u for u in usuarios if u['username'] == usuario_rem), None)
+                    rol = next((r for r in roles if r['nombre'] == rol_rem), None)
+                    
+                    if usuario and rol:
+                        result = auth_client.remover_rol_usuario(
+                            usuario['id'],
+                            rol['id'],
+                            st.session_state.token
+                        )
+                        
+                        if result["success"]:
+                            st.success(f"✅ {result['data']['message']}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error: {result['error']}")

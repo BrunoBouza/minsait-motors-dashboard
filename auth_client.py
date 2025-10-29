@@ -424,6 +424,100 @@ class AuthClient:
                 return {"success": False, "error": response.json().get("detail", "Error desconocido")}
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    # ==================== MÉTODOS DE ELIMINACIÓN ====================
+    
+    def delete_usuario(self, usuario_id: int, token: str) -> Dict:
+        """Elimina un usuario - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/usuarios/{usuario_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 204:
+                return {"success": True}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def delete_grupo(self, grupo_id: int, token: str) -> Dict:
+        """Elimina un grupo - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/grupos/{grupo_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 204:
+                return {"success": True}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def delete_rol(self, rol_id: int, token: str) -> Dict:
+        """Elimina un rol - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/roles/{rol_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 204:
+                return {"success": True}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    # ==================== MÉTODOS PARA REMOVER ASIGNACIONES ====================
+    
+    def remover_usuario_grupo(self, usuario_id: int, grupo_id: int, token: str) -> Dict:
+        """Remueve un usuario de un grupo - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/usuarios/{usuario_id}/grupos/{grupo_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def remover_rol_grupo(self, grupo_id: int, rol_id: int, token: str) -> Dict:
+        """Remueve un rol de un grupo - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/grupos/{grupo_id}/roles/{rol_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
+    
+    def remover_rol_usuario(self, usuario_id: int, rol_id: int, token: str) -> Dict:
+        """Remueve un rol directo de un usuario - Solo admins"""
+        try:
+            response = requests.delete(
+                f"{self.api_url}/usuarios/{usuario_id}/roles/{rol_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                return {"success": False, "error": response.json().get("detail", "Error desconocido")}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": f"Error de conexión: {str(e)}"}
 
 
 def init_session_state():
@@ -581,7 +675,7 @@ def show_new_sale_form():
             company = st.text_input("Marca *", placeholder="Ej: Toyota")
             model = st.text_input("Modelo *", placeholder="Ej: Camry")
             engine = st.text_input("Motor *", placeholder="Ej: 2.5L 4-Cylinder")
-            transmission = st.selectbox("Transmisión *", options=["Automatic", "Manual"])
+            transmission = st.selectbox("Transmisión *", options=["Auto", "Manual"])
         
         with col4:
             st.markdown("**Características**")

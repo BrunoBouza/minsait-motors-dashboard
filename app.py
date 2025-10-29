@@ -100,7 +100,7 @@ def main():
         return
     
     # Header del dashboard con botón de logout
-    col_title, col_user = st.columns([3, 1])
+    col_title, col_user, col_refresh = st.columns([3, 1, 1])
     with col_title:
         st.title("🚗 MINSAIT MOTORS")
         st.markdown("Dashboard de Análisis de Ventas")
@@ -109,6 +109,11 @@ def main():
         if st.session_state.user_info:
             st.markdown(f"**Usuario:** {st.session_state.user_info.get('username', 'N/A')}")
             st.caption(f"Rol: {st.session_state.user_info.get('role', 'N/A')}")
+    with col_refresh:
+        st.write("")  # Espaciado
+        if st.button("🔄 Refrescar", use_container_width=True, help="Actualizar datos desde la base de datos"):
+            st.cache_data.clear()
+            st.rerun()
         if st.button("Cerrar Sesión", use_container_width=True):
             logout()
     
