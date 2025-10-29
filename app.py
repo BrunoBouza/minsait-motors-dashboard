@@ -338,14 +338,27 @@ def main():
     st.header("Predicción de Ventas")
     st.markdown("Utiliza modelos de Machine Learning para predecir las ventas del próximo año.")
     
-    # Nota informativa sobre datos de predicción
-    st.info("""
-    ℹ️ **Nota:** Las predicciones se realizan utilizando únicamente los datos históricos originales (2022-2023).
-    Los nuevos registros añadidos manualmente no se incluyen en el modelo de predicción para mantener la consistencia del análisis.
-    """)
+    # Determinar el año de corte para predicción
+    max_year = df['Year'].max()
+    min_year = df['Year'].min()
     
-    # Filtrar datos para predicción (solo datos históricos hasta 2023)
-    df_prediction = df[df['Year'] <= 2023].copy()
+    # Verificar si el último año tiene datos completos (al menos 6 meses)
+    year_counts = df.groupby('Year').size()
+    latest_year_count = year_counts.get(max_year, 0)
+    avg_year_count = year_counts.mean()
+    
+    # Si el último año tiene menos del 50% de los datos promedio, excluirlo
+    if latest_year_count < avg_year_count * 0.5:
+        cutoff_year = max_year - 1
+        note_text = f"ℹ️ **Nota:** Las predicciones se realizan utilizando datos históricos hasta {cutoff_year}. El año {max_year} se excluye por tener datos incompletos ({latest_year_count} registros)."
+    else:
+        cutoff_year = max_year
+        note_text = f"ℹ️ **Nota:** Las predicciones se realizan utilizando datos históricos hasta {cutoff_year}."
+    
+    st.info(note_text)
+    
+    # Filtrar datos para predicción
+    df_prediction = df[df['Year'] <= cutoff_year].copy()
     
     # Sección de análisis ACF/PACF
     st.markdown("---")
@@ -469,14 +482,14 @@ def main():
                 )
             
             with metric_col3:
-                # Calcular ventas del último año de los datos históricos (2023)
+                # Calcular ventas del último año de los datos históricos
                 last_year_sales = df_prediction[df_prediction['Year'] == df_prediction['Year'].max()]['Price ($)'].sum() / 1_000_000
                 growth = ((summary['total_year'] - last_year_sales) / last_year_sales * 100)
                 st.metric(
                     label="Crecimiento Esperado",
                     value=f"{growth:+.1f}%",
                     delta=f"{growth:+.1f}%",
-                    help="Cambio porcentual respecto al último año histórico (2023)"
+                    help=f"Cambio porcentual respecto al último año histórico ({df_prediction['Year'].max()})"
                 )
             
             # Mostrar gráfico de predicción
