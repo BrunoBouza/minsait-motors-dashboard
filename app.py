@@ -26,7 +26,7 @@ from predictions import (
     get_prediction_summary,
     create_acf_pacf_plot
 )
-from auth_client import init_session_state, login_page, logout, show_user_management, show_new_sale_form
+from auth_client import init_session_state, login_page, logout, show_user_management, show_new_sale_form, AuthClient
 from rbac_admin import show_rbac_admin
 
 # Configuración de la página
@@ -508,6 +508,30 @@ def main():
     if st.session_state.user_info and st.session_state.user_info.get("role") == "admin":
         with st.sidebar.expander("👥 Gestionar Usuarios"):
             show_user_management()
+    
+    # Botón de Sincronización con Snowflake (solo para admin)
+    st.sidebar.markdown("---")
+    if st.session_state.user_info and st.session_state.user_info.get("role") == "admin":
+        if st.sidebar.button("❄️ Sincronizar con Snowflake", use_container_width=True):
+            auth_client = AuthClient()
+            with st.spinner("Sincronizando con Snowflake..."):
+                sync_result = auth_client.trigger_snowflake_sync(st.session_state.token)
+                
+                if sync_result["success"]:
+                    data = sync_result["data"]
+                    if data.get("status") == "success":
+                        sync_info = data.get("data", {})
+                        st.sidebar.success(f"""
+✅ Sincronización completada
+- Batches: {sync_info.get('batches_processed', 0)}
+- Sincronizados: {sync_info.get('total_synced', 0)}
+- Fallidos: {sync_info.get('total_failed', 0)}
+                        """)
+                        st.rerun()
+                    else:
+                        st.sidebar.error(f"❌ {data.get('message', 'Error desconocido')}")
+                else:
+                    st.sidebar.error(f"❌ {sync_result['error']}")
     
     # Información adicional en el sidebar
     st.sidebar.markdown("---")
