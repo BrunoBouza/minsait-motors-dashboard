@@ -12,10 +12,12 @@ from sklearn.preprocessing import StandardScaler
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import acf, pacf
+import streamlit as st
 import warnings
 warnings.filterwarnings('ignore')
 
 
+@st.cache_data
 def prepare_data_for_prediction(df):
     """
     Prepara los datos agregados por semana para el entrenamiento de modelos.
@@ -47,6 +49,7 @@ def prepare_data_for_prediction(df):
     return X, y, dates
 
 
+@st.cache_data
 def create_acf_pacf_plot(y, max_lags=40):
     """
     Crea gráficas ACF y PACF para análisis de series temporales.
@@ -144,6 +147,7 @@ def create_acf_pacf_plot(y, max_lags=40):
     return fig
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def predict_linear_regression(X, y, months_ahead=12):
     """
     Realiza predicciones usando Regresión Lineal.
@@ -191,6 +195,7 @@ def predict_linear_regression(X, y, months_ahead=12):
     return predictions, "Regresión Lineal", r2
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def predict_random_forest(X, y, months_ahead=12):
     """
     Realiza predicciones usando Random Forest.
@@ -243,6 +248,7 @@ def predict_random_forest(X, y, months_ahead=12):
     return predictions, "Random Forest", r2
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def predict_moving_average(X, y, months_ahead=12, window=12):
     """
     Realiza predicciones usando Media Móvil con tendencia.
@@ -302,6 +308,7 @@ def predict_moving_average(X, y, months_ahead=12, window=12):
     return predictions, "Media Móvil con Tendencia", max(0, r2)
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def predict_arima(X, y, months_ahead=12, order=(2, 1, 2)):
     """
     Realiza predicciones usando ARIMA (AutoRegressive Integrated Moving Average).
@@ -350,6 +357,7 @@ def predict_arima(X, y, months_ahead=12, order=(2, 1, 2)):
         return predictions, f"ARIMA{order} (Fallback)", 0
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1)):
     """
     Realiza predicciones usando SARIMA (Seasonal ARIMA).

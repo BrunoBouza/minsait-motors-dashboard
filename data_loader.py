@@ -83,6 +83,7 @@ def load_data(_token: str):
     return df
 
 
+@st.cache_data
 def calculate_kpis(df):
     """
     Calcula los indicadores clave de rendimiento (KPIs) del dashboard.

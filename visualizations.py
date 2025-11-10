@@ -5,8 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+import streamlit as st
 
 
+@st.cache_data
 def create_sales_timeline(df):
     """
     Crea un gráfico de área que muestra la evolución temporal de las ventas agrupadas por semana.
@@ -58,6 +60,7 @@ def create_sales_timeline(df):
     return fig
 
 
+@st.cache_data
 def create_sales_by_company(df, top_n=10):
     """
     Crea un gráfico de barras horizontales con las ventas por compañía.
@@ -103,6 +106,7 @@ def create_sales_by_company(df, top_n=10):
     return fig
 
 
+@st.cache_data
 def create_monthly_sales(df):
     """
     Crea un gráfico de barras con el total de coches vendidos por mes.
@@ -157,6 +161,7 @@ def create_monthly_sales(df):
     return fig
 
 
+@st.cache_data
 def create_top_models(df, top_n=10):
     """
     Crea un gráfico de barras horizontales con los modelos más vendidos.
@@ -202,6 +207,7 @@ def create_top_models(df, top_n=10):
     return fig
 
 
+@st.cache_data
 def create_transmission_pie(df):
     """
     Crea un gráfico de pastel (pie chart) con la distribución de transmisiones.
