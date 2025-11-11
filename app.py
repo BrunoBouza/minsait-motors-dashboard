@@ -24,7 +24,8 @@ from predictions import (
     predict_sarima,
     create_prediction_plot,
     get_prediction_summary,
-    create_acf_pacf_plot
+    create_backtest_plot,
+    create_comparison_plot
 )
 from auth_client import init_session_state, login_page, logout, show_user_management, show_new_sale_form, AuthClient
 from rbac_admin import show_rbac_admin
@@ -360,38 +361,12 @@ def main():
     # Filtrar datos para predicción
     df_prediction = df[df['Year'] <= cutoff_year].copy()
     
-    # Sección de análisis ACF/PACF
-    st.markdown("---")
-    st.subheader("📊 Análisis de Autocorrelación (ACF/PACF)")
-    
-    # Mostrar gráficas ACF/PACF
-    try:
-        X_temp, y_temp, dates_temp = prepare_data_for_prediction(df_prediction)
-        fig_acf_pacf = create_acf_pacf_plot(y_temp, max_lags=40)
-        st.plotly_chart(fig_acf_pacf, use_container_width=True)
-    except Exception as e:
-        st.warning(f"No se pudieron generar las gráficas ACF/PACF: {str(e)}")
-    
     st.markdown("---")
     
     # Controles de predicción
-    pred_col1, pred_col2, pred_col3 = st.columns([2, 2, 1])
+    pred_col1, pred_col2 = st.columns([2, 2])
     
     with pred_col1:
-        # Selector de algoritmo
-        algorithm = st.selectbox(
-            "Seleccionar Algoritmo de Predicción",
-            options=[
-                "Regresión Lineal",
-                "Random Forest",
-                "Media Móvil con Tendencia",
-                "ARIMA",
-                "SARIMA"
-            ],
-            help="Elige el algoritmo que se usará para predecir las ventas futuras"
-        )
-    
-    with pred_col2:
         # Número de meses a predecir
         months_ahead = st.slider(
             "Meses a Predecir",
@@ -401,107 +376,221 @@ def main():
             help="Número de meses futuros a predecir"
         )
     
-    with pred_col3:
+    with pred_col2:
         st.write("")  # Espaciado
         st.write("")  # Espaciado
     
-    # Parámetros personalizados para ARIMA/SARIMA
-    if algorithm in ["ARIMA", "SARIMA"]:
-        st.markdown("#### Parámetros del Modelo")
+    # Parámetros personalizados para SARIMA
+    st.markdown("#### Parámetros del Modelo SARIMA")
         
-        param_col1, param_col2, param_col3 = st.columns(3)
-        
-        with param_col1:
-            p = st.number_input(
-                "p (AR - Autoregresivo)",
-                min_value=0,
-                max_value=5,
-                value=2 if algorithm == "ARIMA" else 1,
-                help="Orden autoregresivo. Mira PACF: el lag donde corta abruptamente sugiere p"
-            )
-        
-        with param_col2:
-            d = st.number_input(
-                "d (Diferenciación)",
-                min_value=0,
-                max_value=2,
-                value=1 if algorithm == "ARIMA" else 0,
-                help="Grado de diferenciación. Usa 1 o 2 para datos no estacionarios"
-            )
-        
-        with param_col3:
-            q = st.number_input(
-                "q (MA - Media Móvil)",
-                min_value=0,
-                max_value=5,
-                value=2 if algorithm == "ARIMA" else 1,
-                help="Orden de media móvil. Mira ACF: el lag donde corta abruptamente sugiere q"
-            )
-        
-        arima_order = (p, d, q)
-    else:
-        arima_order = None
     
-    # Generar y mostrar predicción automáticamente
-    with st.spinner('Generando predicción...'):
+    param_col1, param_col2, param_col3 = st.columns(3)
+    
+    with param_col1:
+        p = st.number_input(
+            "p (AR - Autoregresivo)",
+            min_value=0,
+            max_value=5,
+            value=1,
+            help="Orden autoregresivo. Mira PACF: el lag donde corta abruptamente sugiere p"
+        )
+    
+    with param_col2:
+        d = st.number_input(
+            "d (Diferenciación)",
+            min_value=0,
+            max_value=2,
+            value=0,
+            help="Grado de diferenciación. Usa 1 o 2 para datos no estacionarios"
+        )
+    
+    with param_col3:
+        q = st.number_input(
+            "q (MA - Media Móvil)",
+            min_value=0,
+            max_value=5,
+            value=1,
+            help="Orden de media móvil. Mira ACF: el lag donde corta abruptamente sugiere q"
+        )
+    
+    sarima_order = (p, d, q)
+    
+    # Generar y mostrar predicción automáticamente con ambos modelos
+    with st.spinner('Generando predicciones con Media Móvil y SARIMA...'):
         try:
-            # Preparar datos (usando solo datos históricos hasta 2023)
+            # Preparar datos
             X, y, dates = prepare_data_for_prediction(df_prediction)
             
-            # Seleccionar y ejecutar el algoritmo
-            if algorithm == "Regresión Lineal":
-                predictions, model_name, r2 = predict_linear_regression(X, y, months_ahead)
-            elif algorithm == "Random Forest":
-                predictions, model_name, r2 = predict_random_forest(X, y, months_ahead)
-            elif algorithm == "ARIMA":
-                predictions, model_name, r2 = predict_arima(X, y, months_ahead, order=arima_order)
-            elif algorithm == "SARIMA":
-                predictions, model_name, r2 = predict_sarima(X, y, months_ahead, order=arima_order)
-            else:  # Media Móvil con Tendencia
-                predictions, model_name, r2 = predict_moving_average(X, y, months_ahead)
+            # Ejecutar AMBOS modelos
+            # 1. Media Móvil con Tendencia
+            pred_ma, name_ma, r2_ma = predict_moving_average(X, y, months_ahead)
             
-            # Obtener resumen de predicciones
-            summary = get_prediction_summary(predictions, model_name, r2)
+            # 2. SARIMA con backtesting
+            pred_sarima, name_sarima, r2_sarima, backtest_results = predict_sarima(X, y, months_ahead, order=sarima_order)
             
-            # Mostrar métricas de predicción
-            st.markdown("### Resultados de la Predicción")
-            metric_col1, metric_col2, metric_col3 = st.columns(3)
+            # Obtener resúmenes de ambos modelos
+            summary_ma = get_prediction_summary(pred_ma, name_ma, r2_ma)
+            summary_sarima = get_prediction_summary(pred_sarima, name_sarima, r2_sarima)
             
-            with metric_col1:
+            # Mostrar métricas comparativas
+            st.markdown("### 📊 Comparación de Modelos")
+            
+            # Tabla comparativa
+            comp_col1, comp_col2 = st.columns(2)
+            
+            with comp_col1:
+                st.markdown("#### 📈 Media Móvil con Tendencia")
                 st.metric(
                     label="Ventas Totales Predichas",
-                    value=f"{summary['total_year']:.1f} M€",
-                    help="Suma total de ventas predichas para el período"
+                    value=f"{summary_ma['total_year']:.1f} M€"
                 )
-            
-            with metric_col2:
                 st.metric(
                     label="Promedio Mensual",
-                    value=f"{summary['avg_monthly']:.1f} M€",
-                    help="Promedio de ventas mensuales predichas"
+                    value=f"{summary_ma['avg_monthly']:.1f} M€"
                 )
             
-            with metric_col3:
-                # Calcular ventas del último año de los datos históricos
-                last_year_sales = df_prediction[df_prediction['Year'] == df_prediction['Year'].max()]['Price ($)'].sum() / 1_000_000
-                growth = ((summary['total_year'] - last_year_sales) / last_year_sales * 100)
+            with comp_col2:
+                st.markdown("#### 📉 SARIMA")
                 st.metric(
-                    label="Crecimiento Esperado",
-                    value=f"{growth:+.1f}%",
-                    delta=f"{growth:+.1f}%",
-                    help=f"Cambio porcentual respecto al último año histórico ({df_prediction['Year'].max()})"
+                    label="Ventas Totales Predichas",
+                    value=f"{summary_sarima['total_year']:.1f} M€"
+                )
+                st.metric(
+                    label="Promedio Mensual",
+                    value=f"{summary_sarima['avg_monthly']:.1f} M€"
                 )
             
-            # Mostrar gráfico de predicción
-            last_date = dates[-1]
-            fig_prediction = create_prediction_plot(df_prediction, predictions, model_name, last_date)
-            st.plotly_chart(fig_prediction, use_container_width=True)
+            # Mostrar métricas de backtesting de SARIMA
+            if backtest_results is not None and 'num_iterations' in backtest_results:
+                st.markdown("---")
+                st.markdown("### 📊 Métricas de Backtesting SARIMA (Validación con Ventana Deslizante)")
+                
+                window_type_text = "expandible (crece con el tiempo)" if backtest_results.get('window_type') == 'expanding' else "fija"
+                st.info(f"""
+                **Backtesting Rolling Window ({window_type_text}):** El modelo fue reentrenado **{backtest_results['num_iterations']} veces** 
+                usando ventana deslizante sobre **{backtest_results['test_size']} semanas** de datos de prueba.
+                
+                ℹ️ El backtesting se usa para **validación**. Las predicciones futuras se generan con un modelo SARIMA 
+                entrenado con **todos los datos históricos** para máxima precisión.
+                """)
+                
+                backtest_col1, backtest_col2, backtest_col3, backtest_col4 = st.columns(4)
+                
+                with backtest_col1:
+                    st.metric(
+                        label="MAE Global",
+                        value=f"{backtest_results['mae']:.2f} M€",
+                        help="Error absoluto medio sobre todas las predicciones"
+                    )
+                
+                with backtest_col2:
+                    st.metric(
+                        label="RMSE Global",
+                        value=f"{backtest_results['rmse']:.2f} M€",
+                        help="Raíz del error cuadrático - penaliza errores grandes"
+                    )
+                
+                with backtest_col3:
+                    st.metric(
+                        label="MAPE",
+                        value=f"{backtest_results['mape']:.1f}%",
+                        help="Error porcentual promedio"
+                    )
+                
+                with backtest_col4:
+                    st.metric(
+                        label="Reentrenamientos",
+                        value=f"{backtest_results['num_iterations']}",
+                        help="Número de veces que se reentrenó el modelo"
+                    )
+                
+                # Mostrar evolución de errores por iteración
+                if 'iteration_errors' in backtest_results and len(backtest_results['iteration_errors']) > 0:
+                    st.markdown("#### 📈 Evolución del Error por Iteración")
+                    st.info("Cada punto representa el MAE de una ventana de predicción en el backtesting.")
+                    
+                    # Crear DataFrame para el gráfico
+                    error_df = pd.DataFrame({
+                        'Iteración': range(1, len(backtest_results['iteration_errors']) + 1),
+                        'MAE (M€)': backtest_results['iteration_errors']
+                    })
+                    st.line_chart(error_df.set_index('Iteración'))
+                
+                # Gráfico simple: Predicciones vs Valores Reales
+                st.markdown("#### 📊 Predicciones vs Valores Reales (Backtesting)")
+                
+                # Crear figura simple con matplotlib/plotly
+                import plotly.graph_objects as go
+                
+                fig_comparison = go.Figure()
+                
+                # Valores reales
+                fig_comparison.add_trace(go.Scatter(
+                    y=backtest_results['actuals'],
+                    mode='lines+markers',
+                    name='Valores Reales',
+                    line=dict(color='#2ECC71', width=3),
+                    marker=dict(size=6)
+                ))
+                
+                # Predicciones
+                fig_comparison.add_trace(go.Scatter(
+                    y=backtest_results['predictions'],
+                    mode='lines+markers',
+                    name='Predicciones',
+                    line=dict(color='#E74C3C', width=2, dash='dash'),
+                    marker=dict(size=5, symbol='x')
+                ))
+                
+                fig_comparison.update_layout(
+                    title='Comparación: Predicciones vs Valores Reales en periodo de test',
+                    xaxis_title='Punto temporal',
+                    yaxis_title='Ventas (M€)',
+                    template='plotly_white',
+                    hovermode='x unified',
+                    height=350
+                )
+                
+                st.plotly_chart(fig_comparison, use_container_width=True)
+                
+                # Mostrar gráfico de backtesting completo (con contexto de entrenamiento)
+                st.markdown("#### 📈 Vista Completa del Backtesting")
+                fig_backtest = create_backtest_plot(backtest_results, y)
+                if fig_backtest:
+                    st.plotly_chart(fig_backtest, use_container_width=True)
+            elif backtest_results is None:
+                st.warning("⚠️ No se pudo realizar el backtesting: datos insuficientes para validación.")
             
-            st.success("Predicción generada exitosamente!")
+            # Crear gráfico comparativo entre Media Móvil y SARIMA
+            st.markdown("---")
+            st.markdown("### 📈 Comparación de Predicciones: Media Móvil vs SARIMA")
+            
+            # La función create_comparison_plot calcula internamente la última fecha desde el resample
+            # No necesitamos pasar last_date porque usaría los datos originales (diarios) 
+            # en lugar de los datos resampled (semanales), causando desalineación
+            fig_comparison = create_comparison_plot(df_prediction, pred_ma, pred_sarima, name_ma, name_sarima)
+            st.plotly_chart(fig_comparison, use_container_width=True)
+            
+            st.success("✅ Predicciones generadas exitosamente con ambos modelos!")
             
         except Exception as e:
-            st.error(f"Error al generar la predicción: {str(e)}")
-            st.info("Asegúrate de tener suficientes datos históricos para entrenar el modelo.")
+            import traceback
+            st.error(f"❌ Error al generar la predicción: {str(e)}")
+            
+            # Mostrar detalles técnicos en un expander para debugging
+            with st.expander("🔍 Ver detalles técnicos del error"):
+                st.code(traceback.format_exc())
+                st.markdown("**Información de contexto:**")
+                if 'months_ahead' in locals():
+                    st.write(f"- Meses a predecir: {months_ahead}")
+                if 'sarima_order' in locals():
+                    st.write(f"- Orden SARIMA: {sarima_order}")
+                if 'df_prediction' in locals():
+                    st.write(f"- Número de registros: {len(df_prediction)}")
+                if 'y' in locals():
+                    st.write(f"- Semanas de datos: {len(y)}")
+            
+            st.info("💡 Asegúrate de tener suficientes datos históricos para entrenar el modelo.")
     
     # Panel de gestión de usuarios (solo para admin)
     st.sidebar.markdown("---")

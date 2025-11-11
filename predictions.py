@@ -30,7 +30,7 @@ def prepare_data_for_prediction(df):
     """
     # Agrupar ventas por semana
     df_sorted = df.sort_values('Date')
-    weekly_data = df_sorted.set_index('Date').resample('W')['Price ($)'].sum().reset_index()
+    weekly_data = df_sorted.set_index('Date').resample('W-SUN')['Price ($)'].sum().reset_index()
     
     # Convertir a millones de euros
     weekly_data['Sales'] = weekly_data['Price ($)'] / 1_000_000
@@ -331,8 +331,13 @@ def predict_arima(X, y, months_ahead=12, order=(2, 1, 2)):
         if len(y) < 20:
             raise ValueError("No hay suficientes datos para entrenar ARIMA")
         
+        # Crear serie temporal con índice de fechas para evitar problemas con pandas 2.0+
+        start_date = pd.Timestamp('2020-01-05')  # Fecha inicial arbitraria (un domingo)
+        date_index = pd.date_range(start=start_date, periods=len(y), freq='W-SUN')
+        y_series = pd.Series(y, index=date_index)
+        
         # ARIMA puro sin componente estacional
-        model = SARIMAX(y, order=order, seasonal_order=(0, 0, 0, 0), 
+        model = SARIMAX(y_series, order=order, seasonal_order=(0, 0, 0, 0), 
                        enforce_stationarity=False, enforce_invertibility=False)
         fitted_model = model.fit(disp=False)
         
@@ -357,8 +362,133 @@ def predict_arima(X, y, months_ahead=12, order=(2, 1, 2)):
         return predictions, f"ARIMA{order} (Fallback)", 0
 
 
+def perform_sarima_backtesting(y, order=(1, 0, 1), test_size=0.2, step_size=4, fixed_window=False, window_size=52):
+    """
+    Realiza backtesting REAL de SARIMA con ventana deslizante (rolling window).
+    Reentrena el modelo en cada paso y evalúa su evolución temporal.
+    
+    Args:
+        y (np.array): Serie temporal completa
+        order (tuple): Parámetros (p, d, q) de SARIMA
+        test_size (float): Proporción de datos para testing (0.2 = 20%)
+        step_size (int): Tamaño del paso (semanas) para avanzar la ventana
+        fixed_window (bool): Si True, usa ventana fija. Si False, ventana expandible (default)
+        window_size (int): Tamaño de la ventana fija (solo si fixed_window=True)
+        
+    Returns:
+        dict: Diccionario con métricas de error, evolución temporal y último modelo entrenado
+    """
+    try:
+        # Calcular puntos de inicio y fin del backtesting
+        split_point = int(len(y) * (1 - test_size))
+        
+        if split_point < 20:
+            return None
+        
+        # Determinar orden estacional
+        if split_point >= 52:
+            seasonal_order = (1, 0, 1, 52)
+        else:
+            seasonal_order = (1, 0, 0, 13)
+        
+        # Crear fecha inicial para índices
+        start_date = pd.Timestamp('2020-01-05')
+        
+        # Almacenar resultados de cada iteración
+        all_predictions = []
+        all_actuals = []
+        iteration_errors = []  # MAE de cada iteración
+        train_sizes = []
+        last_fitted_model = None  # Guardar el último modelo entrenado
+        
+        # Ventana deslizante: desde split_point hasta el final
+        current_pos = split_point
+        
+        while current_pos < len(y):
+            # Determinar cuántas semanas predecir en esta iteración
+            # (mínimo step_size o lo que quede hasta el final)
+            forecast_horizon = min(step_size, len(y) - current_pos)
+            
+            # Datos de entrenamiento según el tipo de ventana
+            if fixed_window:
+                # Ventana FIJA: solo últimas window_size semanas
+                train_start = max(0, current_pos - window_size)
+                train_data = y[train_start:current_pos]
+            else:
+                # Ventana EXPANDIBLE: todo hasta current_pos
+                train_data = y[:current_pos]
+            
+            # Datos reales para comparar (lo que vamos a predecir)
+            actual_data = y[current_pos:current_pos + forecast_horizon]
+            
+            # Crear serie temporal con índice de fechas
+            date_index_train = pd.date_range(start=start_date, periods=len(train_data), freq='W-SUN')
+            train_series = pd.Series(train_data, index=date_index_train)
+            
+            try:
+                # Entrenar modelo con datos de entrenamiento
+                # Reducir maxiter para datasets grandes (optimización)
+                model = SARIMAX(train_series, order=order, seasonal_order=seasonal_order,
+                               enforce_stationarity=False, enforce_invertibility=False)
+                fitted_model = model.fit(disp=False, maxiter=50, method='lbfgs')
+                
+                # Guardar el último modelo entrenado
+                last_fitted_model = fitted_model
+                
+                # Predecir el siguiente periodo
+                predictions = fitted_model.forecast(steps=forecast_horizon)
+                predictions = np.maximum(predictions, 0)  # No negativas
+                
+                # Guardar resultados de esta iteración
+                all_predictions.extend(predictions)
+                all_actuals.extend(actual_data)
+                train_sizes.append(len(train_data))
+                
+                # Calcular error de esta iteración
+                iter_mae = np.mean(np.abs(actual_data - predictions))
+                iteration_errors.append(iter_mae)
+                
+            except Exception as iter_error:
+                print(f"Error en iteración {current_pos}: {iter_error}")
+                # Si falla una iteración, usar el último valor conocido
+                fallback_pred = np.full(forecast_horizon, train_data[-1])
+                all_predictions.extend(fallback_pred)
+                all_actuals.extend(actual_data)
+                iteration_errors.append(np.mean(np.abs(actual_data - fallback_pred)))
+            
+            # Avanzar la ventana
+            current_pos += forecast_horizon
+        
+        # Convertir a arrays
+        all_predictions = np.array(all_predictions)
+        all_actuals = np.array(all_actuals)
+        
+        # Calcular métricas globales sobre todas las predicciones
+        mae = np.mean(np.abs(all_actuals - all_predictions))
+        rmse = np.sqrt(np.mean((all_actuals - all_predictions) ** 2))
+        mape = np.mean(np.abs((all_actuals - all_predictions) / (all_actuals + 1e-10))) * 100
+        
+        return {
+            'mae': mae,
+            'rmse': rmse,
+            'mape': mape,
+            'predictions': all_predictions,
+            'actuals': all_actuals,
+            'train_size': split_point,
+            'test_size': len(all_actuals),
+            'iteration_errors': iteration_errors,  # Error por cada ventana
+            'num_iterations': len(iteration_errors),  # Número de reentrenamientos
+            'avg_iteration_mae': np.mean(iteration_errors),  # Promedio de errores
+            'window_type': 'fixed' if fixed_window else 'expanding'  # Tipo de ventana usado
+        }
+    
+    except Exception as e:
+        print(f"Error en backtesting SARIMA: {e}")
+        return None
+
+
 @st.cache_data(ttl=600, show_spinner=False)
-def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1)):
+def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1), _use_rolling_backtest=True):
     """
     Realiza predicciones usando SARIMA (Seasonal ARIMA).
     Modelo avanzado de series temporales con componente estacional.
@@ -368,9 +498,10 @@ def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1)):
         y (np.array): Variable objetivo (ventas) - serie temporal
         months_ahead (int): Número de meses a predecir (se convertirá a semanas)
         order (tuple): Orden (p, d, q) del modelo ARIMA
+        _use_rolling_backtest (bool): Flag para invalidar caché tras cambios en backtesting
         
     Returns:
-        tuple: (predictions, model_name, aic_score)
+        tuple: (predictions, model_name, aic_score, backtest_results)
     """
     try:
         # Convertir meses a semanas (aproximadamente 4.3 semanas por mes)
@@ -386,11 +517,24 @@ def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1)):
         else:
             seasonal_order = (1, 0, 0, 13)  # Patrón trimestral si hay menos datos
         
-        model = SARIMAX(y, order=order, seasonal_order=seasonal_order, 
-                       enforce_stationarity=False, enforce_invertibility=False)
-        fitted_model = model.fit(disp=False)
+        # PASO 1: Realizar backtesting PRIMERO (entrena con ventana deslizante)
+        # El backtesting se usa solo para validación, NO para predicciones
+        backtest_results = perform_sarima_backtesting(y, order=order, test_size=0.2)
         
-        # Realizar predicciones
+        # PASO 2: Entrenar modelo NUEVO con TODOS los datos para predicciones futuras
+        # NO usamos el modelo del backtesting
+        
+        # Crear serie temporal con índice de fechas
+        start_date = pd.Timestamp('2020-01-05')
+        date_index = pd.date_range(start=start_date, periods=len(y), freq='W-SUN')
+        y_series = pd.Series(y, index=date_index)
+        
+        # Entrenar modelo con TODOS los datos
+        model = SARIMAX(y_series, order=order, seasonal_order=seasonal_order, 
+                       enforce_stationarity=False, enforce_invertibility=False)
+        fitted_model = model.fit(disp=False, maxiter=50, method='lbfgs')
+        
+        # PASO 3: Realizar predicciones futuras
         forecast = fitted_model.forecast(steps=weeks_ahead)
         predictions = np.array(forecast)
         
@@ -400,7 +544,7 @@ def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1)):
         # Usar AIC (Akaike Information Criterion) como métrica
         aic = fitted_model.aic
         
-        return predictions, f"SARIMA{order}x{seasonal_order[:3]}", aic
+        return predictions, f"SARIMA{order}x{seasonal_order[:3]}", aic, backtest_results
         
     except Exception as e:
         print(f"Error en SARIMA: {e}")
@@ -420,7 +564,191 @@ def predict_sarima(X, y, months_ahead=12, order=(1, 0, 1)):
             pred = trend + seasonal_pattern[seasonal_idx]
             predictions.append(max(pred, 0))
         
-        return np.array(predictions), f"SARIMA{order} (Fallback)", 0
+        return np.array(predictions), f"SARIMA{order} (Fallback)", 0, None
+
+
+def create_backtest_plot(backtest_results, y):
+    """
+    Crea un gráfico comparando predicciones vs valores reales en el período de test.
+    
+    Args:
+        backtest_results (dict): Resultados del backtesting con predicciones y valores reales
+        y (np.array): Serie temporal completa para contexto
+        
+    Returns:
+        plotly.graph_objects.Figure: Figura con comparación visual
+    """
+    if backtest_results is None:
+        return None
+    
+    train_size = backtest_results['train_size']
+    test_size = backtest_results['test_size']
+    predictions = backtest_results['predictions']
+    actuals = backtest_results['actuals']
+    
+    # Crear índices continuos (sin gaps)
+    # Todo el rango de 0 a len(y)-1
+    all_indices = list(range(len(y)))
+    train_indices = all_indices[:train_size]
+    
+    # Los índices de test deben continuar inmediatamente después del entrenamiento
+    # Esto asegura que no hay gap visual
+    test_indices = list(range(train_size, train_size + test_size))
+    
+    fig = go.Figure()
+    
+    # Datos de entrenamiento (contexto)
+    fig.add_trace(go.Scatter(
+        x=train_indices,
+        y=y[:train_size],
+        mode='lines',
+        name='Datos de Entrenamiento',
+        line=dict(color='#4A90E2', width=2),
+        opacity=0.6
+    ))
+    
+    # Valores reales del período de test
+    fig.add_trace(go.Scatter(
+        x=test_indices,
+        y=actuals,
+        mode='lines+markers',
+        name='Valores Reales (Test)',
+        line=dict(color='#2ECC71', width=3),
+        marker=dict(size=6)
+    ))
+    
+    # Predicciones sobre el período de test
+    fig.add_trace(go.Scatter(
+        x=test_indices,
+        y=predictions,
+        mode='lines+markers',
+        name='Predicciones del Modelo',
+        line=dict(color='#E74C3C', width=2, dash='dash'),
+        marker=dict(size=6, symbol='x')
+    ))
+    
+    fig.update_layout(
+        title='Backtesting: Comparación entre Predicciones y Valores Reales',
+        xaxis_title='Semana',
+        yaxis_title='Ventas (mill €)',
+        template='plotly_white',
+        hovermode='x unified',
+        height=400,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    return fig
+
+
+def create_comparison_plot(df, pred_ma, pred_sarima, name_ma, name_sarima):
+    """
+    Crea un gráfico comparativo entre Media Móvil y SARIMA.
+    
+    Args:
+        df (pd.DataFrame): DataFrame con datos históricos
+        pred_ma (np.array): Predicciones de Media Móvil
+        pred_sarima (np.array): Predicciones de SARIMA
+        name_ma (str): Nombre del modelo Media Móvil
+        name_sarima (str): Nombre del modelo SARIMA
+        
+    Returns:
+        plotly.graph_objects.Figure: Figura comparativa
+    """
+    # Preparar datos históricos semanales
+    df_sorted = df.sort_values('Date')
+    weekly_historical = df_sorted.set_index('Date').resample('W-SUN')['Price ($)'].sum().reset_index()
+    weekly_historical['Sales'] = weekly_historical['Price ($)'] / 1_000_000
+    
+    # Usar la última fecha del resample (no last_date original)
+    # Esto asegura que las predicciones comiencen justo después del último punto histórico
+    last_historical_date = weekly_historical['Date'].iloc[-1]
+    
+    # Generar fechas futuras (semanales) comenzando desde la semana siguiente
+    future_dates = []
+    for i in range(len(pred_ma)):
+        future_date = last_historical_date + pd.Timedelta(weeks=i+1)
+        future_dates.append(future_date)
+    
+    # Crear figura
+    fig = go.Figure()
+    
+    # Datos históricos
+    fig.add_trace(go.Scatter(
+        x=weekly_historical['Date'],
+        y=weekly_historical['Sales'],
+        mode='lines',
+        name='Datos Históricos',
+        line=dict(color='#4A90E2', width=2),
+        opacity=0.7
+    ))
+    
+    # Predicciones Media Móvil
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=pred_ma,
+        mode='lines+markers',
+        name=name_ma,
+        line=dict(color='#2ECC71', width=2, dash='dash'),
+        marker=dict(size=5)
+    ))
+    
+    # Predicciones SARIMA
+    fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=pred_sarima,
+        mode='lines+markers',
+        name=name_sarima,
+        line=dict(color='#E74C3C', width=2, dash='dot'),
+        marker=dict(size=5, symbol='diamond')
+    ))
+    
+    # Línea vertical para marcar el inicio de las predicciones
+    # Usamos la última fecha histórica del resample
+    fig.add_shape(
+        type="line",
+        x0=last_historical_date,
+        x1=last_historical_date,
+        y0=0,
+        y1=1,
+        yref="paper",
+        line=dict(color="gray", width=2, dash="solid"),
+        opacity=0.5
+    )
+    
+    # Añadir anotación manualmente
+    fig.add_annotation(
+        x=last_historical_date,
+        y=1,
+        yref="paper",
+        text="Inicio de Predicciones",
+        showarrow=False,
+        yshift=10,
+        font=dict(size=10, color="gray")
+    )
+    
+    fig.update_layout(
+        title='Comparación de Predicciones: Media Móvil vs SARIMA',
+        xaxis_title='Fecha',
+        yaxis_title='Ventas (mill €)',
+        template='plotly_white',
+        hovermode='x unified',
+        height=500,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    return fig
 
 
 def create_prediction_plot(df, predictions, model_name, last_date):
@@ -438,20 +766,17 @@ def create_prediction_plot(df, predictions, model_name, last_date):
     """
     # Preparar datos históricos semanales
     df_sorted = df.sort_values('Date')
-    weekly_historical = df_sorted.set_index('Date').resample('W')['Price ($)'].sum().reset_index()
+    weekly_historical = df_sorted.set_index('Date').resample('W-SUN')['Price ($)'].sum().reset_index()
     weekly_historical['Sales'] = weekly_historical['Price ($)'] / 1_000_000
     
-    # Convertir last_date a pandas Timestamp si es numpy.datetime64
-    if isinstance(last_date, np.datetime64):
-        last_date = pd.Timestamp(last_date)
+    # Usar la última fecha del resample para continuidad perfecta
+    last_historical_date = weekly_historical['Date'].iloc[-1]
     
-    # Generar fechas futuras (semanales)
+    # Generar fechas futuras (semanales) comenzando desde la semana siguiente
     future_dates = []
-    current_date = last_date
     for i in range(len(predictions)):
-        # Avanzar una semana usando pandas
-        current_date = current_date + pd.DateOffset(weeks=1)
-        future_dates.append(current_date)
+        future_date = last_historical_date + pd.Timedelta(weeks=i+1)
+        future_dates.append(future_date)
     
     # Crear figura
     fig = go.Figure()
